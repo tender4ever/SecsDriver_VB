@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27130.2027
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "SecsDriver_VB", "SecsDriver_VB\SecsDriver_VB.vbproj", "{A7B28E79-218F-44B3-A7A1-82A79D0247CA}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A7B28E79-218F-44B3-A7A1-82A79D0247CA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7B28E79-218F-44B3-A7A1-82A79D0247CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7B28E79-218F-44B3-A7A1-82A79D0247CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7B28E79-218F-44B3-A7A1-82A79D0247CA}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3FBA14A9-0FFE-4BF4-82EE-93AEC2183539}
+	EndGlobalSection
+EndGlobal
