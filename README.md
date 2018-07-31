@@ -1,5 +1,9 @@
 # SECS-Driver
 
+This program uses vb.net to practice SEMI standard.
+
+SEMI standard defines the format of the message to pass between the host and the equipment
+
 ## SEMI Standard
 
 | Standard | Name |
