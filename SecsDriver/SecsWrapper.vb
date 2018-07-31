@@ -37,6 +37,7 @@ Namespace SecsDriver
     Public Delegate Sub delegateTimeout(ByRef aMessage As String)
 
 
+
     Public Class SecsWrapper : Implements IFMessageListener
 
 		' Send Transaction Map
@@ -188,18 +189,16 @@ Namespace SecsDriver
 		' Send Primary Message
 		Public Sub SendPrimary(ByRef aSecsMessage As SecsMessage)
 
-            SyncLock thisLock
-
-                Try
+            Try
+                SyncLock thisLock
 
                     ' 檢查 System Bytes
                     aSecsMessage.messageFormat.SystemBytes = BitConverter.GetBytes(getSystemByte())
                     Array.Reverse(aSecsMessage.messageFormat.SystemBytes)
 
                     ' New 一個 SecsTransaction，並把 Primary 放在裡面
-                    sTransaction = New SecsTransaction()
+                    Dim sTransaction As SecsTransaction = New SecsTransaction()
                     sTransaction.Primary = aSecsMessage
-
 
                     ' SendTransactionMap 新增此 Transaction
                     SyncLock SendTransactionMap
@@ -230,21 +229,21 @@ Namespace SecsDriver
                     ' 紀錄 Log
                     DoLog(sTransaction.Primary.ConvertToBinaryLog("SND"), sTransaction.Primary.ConvertToSML("PrimaryOut"))
 
-                Catch ex As Exception
+                End SyncLock
 
-                    RaiseEvent OnMessageError(sTransaction.Primary, "Send Primary Error")
+            Catch ex As Exception
 
-                    ' 刪除 Primary
-                    If sTransaction.Primary IsNot Nothing Then
-                        sTransaction.Primary.Dispose()
-                    End If
+                RaiseEvent OnMessageError(sTransaction.Primary, "Send Primary Error")
 
-                    ' 刪除 Transaction
-                    sTransaction = Nothing
+                ' 刪除 Primary
+                If sTransaction.Primary IsNot Nothing Then
+                    sTransaction.Primary.Dispose()
+                End If
 
-                End Try
+                ' 刪除 Transaction
+                sTransaction = Nothing
 
-            End SyncLock
+            End Try
 
         End Sub
 
@@ -252,9 +251,9 @@ Namespace SecsDriver
         ' Send Secondary Message
         Public Sub SendSecondary(ByRef aTransaction As SecsTransaction)
 
-            SyncLock thisLock
+            Try
+                SyncLock thisLock
 
-                Try
                     ' 如果是 Data Message，則解除 T3 Timeout 
                     ' 如果是 Control Message，則解除 T6 Timeout
                     If aTransaction.sTimeoutList.Count > 0 Then
@@ -294,26 +293,26 @@ Namespace SecsDriver
                     ' 紀錄 Log
                     DoLog(aTransaction.Secondary.ConvertToBinaryLog("SND"), aTransaction.Secondary.ConvertToSML("SecondaryOut"))
 
-                Catch ex As Exception
+                End SyncLock
 
-                    RaiseEvent OnMessageError(aTransaction.Secondary, "Send Secondary Error")
+            Catch ex As Exception
 
-                    ' 刪除 Primary
-                    If aTransaction.Primary IsNot Nothing Then
-                        aTransaction.Primary.Dispose()
-                    End If
+                RaiseEvent OnMessageError(aTransaction.Secondary, "Send Secondary Error")
 
-                    ' 刪除 Secondary
-                    If aTransaction.Secondary IsNot Nothing Then
-                        aTransaction.Secondary.Dispose()
-                    End If
+                ' 刪除 Primary
+                If aTransaction.Primary IsNot Nothing Then
+                    aTransaction.Primary.Dispose()
+                End If
 
-                    ' 刪除 Transaction
-                    aTransaction = Nothing
+                ' 刪除 Secondary
+                If aTransaction.Secondary IsNot Nothing Then
+                    aTransaction.Secondary.Dispose()
+                End If
 
-                End Try
+                ' 刪除 Transaction
+                aTransaction = Nothing
 
-            End SyncLock
+            End Try
 
         End Sub
 
