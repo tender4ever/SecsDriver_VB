@@ -164,11 +164,17 @@ Public Class Form1
         StopClean = False
 
         Do
-            Dim temp As CleanGUI = New CleanGUI(AddressOf GUIClean)
-            Invoke(temp, RichTextBox1)
+            If RichTextBox1.TextLength > 1800 Then
 
-            Application.DoEvents()
-            Thread.Sleep(10000)
+                Dim temp As CleanGUI = New CleanGUI(AddressOf GUIClean)
+                Invoke(temp, RichTextBox1)
+
+                Application.DoEvents()
+                Thread.Sleep(1)
+
+            End If
+
+            Thread.Sleep(1)
 
         Loop Until StopClean = True
 
@@ -330,7 +336,7 @@ Public Class Form1
 
     Public Sub GUIClean(ByRef control As Control)
 
-        RichTextBox1.Text = ""
+        RichTextBox1.Text = RichTextBox1.Text.Substring(RichTextBox1.Lines(0).Length + 1)
 
     End Sub
 
