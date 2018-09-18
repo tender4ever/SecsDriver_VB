@@ -1,0 +1,79 @@
+C:\Users\TenderYang\Documents\Visual Studio 2017\Projects\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.exe.config
+C:\Users\TenderYang\Documents\Visual Studio 2017\Projects\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.exe
+C:\Users\TenderYang\Documents\Visual Studio 2017\Projects\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.pdb
+C:\Users\TenderYang\Documents\Visual Studio 2017\Projects\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.xml
+C:\Users\TenderYang\Documents\Visual Studio 2017\Projects\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.Form1.resources
+C:\Users\TenderYang\Documents\Visual Studio 2017\Projects\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.Resources.resources
+C:\Users\TenderYang\Documents\Visual Studio 2017\Projects\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.vbproj.GenerateResource.Cache
+C:\Users\TenderYang\Documents\Visual Studio 2017\Projects\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.vbproj.CoreCompileInputs.cache
+C:\Users\TenderYang\Documents\Visual Studio 2017\Projects\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.exe
+C:\Users\TenderYang\Documents\Visual Studio 2017\Projects\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.xml
+C:\Users\TenderYang\Documents\Visual Studio 2017\Projects\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.pdb
+C:\Users\TenderYang\Desktop\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.exe.config
+C:\Users\TenderYang\Desktop\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.exe
+C:\Users\TenderYang\Desktop\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.pdb
+C:\Users\TenderYang\Desktop\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.xml
+C:\Users\TenderYang\Desktop\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.Form1.resources
+C:\Users\TenderYang\Desktop\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.Resources.resources
+C:\Users\TenderYang\Desktop\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.vbproj.GenerateResource.cache
+C:\Users\TenderYang\Desktop\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.vbproj.CoreCompileInputs.cache
+C:\Users\TenderYang\Desktop\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.exe
+C:\Users\TenderYang\Desktop\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.xml
+C:\Users\TenderYang\Desktop\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.pdb
+C:\Users\TenderYang\Desktop\SecsDriver_VB - 複製\SecsDriver_VB\bin\Debug\SecsDriver_VB.exe.config
+C:\Users\TenderYang\Desktop\SecsDriver_VB - 複製\SecsDriver_VB\bin\Debug\SecsDriver_VB.exe
+C:\Users\TenderYang\Desktop\SecsDriver_VB - 複製\SecsDriver_VB\bin\Debug\SecsDriver_VB.pdb
+C:\Users\TenderYang\Desktop\SecsDriver_VB - 複製\SecsDriver_VB\bin\Debug\SecsDriver_VB.xml
+C:\Users\TenderYang\Desktop\SecsDriver_VB - 複製\SecsDriver_VB\obj\Debug\SecsDriver_VB.Form1.resources
+C:\Users\TenderYang\Desktop\SecsDriver_VB - 複製\SecsDriver_VB\obj\Debug\SecsDriver_VB.Resources.resources
+C:\Users\TenderYang\Desktop\SecsDriver_VB - 複製\SecsDriver_VB\obj\Debug\SecsDriver_VB.vbproj.GenerateResource.cache
+C:\Users\TenderYang\Desktop\SecsDriver_VB - 複製\SecsDriver_VB\obj\Debug\SecsDriver_VB.vbproj.CoreCompileInputs.cache
+C:\Users\TenderYang\Desktop\SecsDriver_VB - 複製\SecsDriver_VB\obj\Debug\SecsDriver_VB.exe
+C:\Users\TenderYang\Desktop\SecsDriver_VB - 複製\SecsDriver_VB\obj\Debug\SecsDriver_VB.xml
+C:\Users\TenderYang\Desktop\SecsDriver_VB - 複製\SecsDriver_VB\obj\Debug\SecsDriver_VB.pdb
+C:\Users\TenderYang\Desktop\SecsDriver_VB - 複製\SecsDriver_VB\obj\Debug\SecsDriver_VB.vbprojAssemblyReference.cache
+C:\Users\TenderYang\Desktop\SecsDriver\ver3\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.exe.config
+C:\Users\TenderYang\Desktop\SecsDriver\ver3\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.exe
+C:\Users\TenderYang\Desktop\SecsDriver\ver3\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.pdb
+C:\Users\TenderYang\Desktop\SecsDriver\ver3\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.xml
+C:\Users\TenderYang\Desktop\SecsDriver\ver3\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.vbprojAssemblyReference.cache
+C:\Users\TenderYang\Desktop\SecsDriver\ver3\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.Form1.resources
+C:\Users\TenderYang\Desktop\SecsDriver\ver3\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.Resources.resources
+C:\Users\TenderYang\Desktop\SecsDriver\ver3\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.vbproj.GenerateResource.cache
+C:\Users\TenderYang\Desktop\SecsDriver\ver3\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.vbproj.CoreCompileInputs.cache
+C:\Users\TenderYang\Desktop\SecsDriver\ver3\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.exe
+C:\Users\TenderYang\Desktop\SecsDriver\ver3\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.xml
+C:\Users\TenderYang\Desktop\SecsDriver\ver3\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.pdb
+C:\Users\TenderYang\Desktop\SecsDriver\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.exe.config
+C:\Users\TenderYang\Desktop\SecsDriver\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.exe
+C:\Users\TenderYang\Desktop\SecsDriver\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.pdb
+C:\Users\TenderYang\Desktop\SecsDriver\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.xml
+C:\Users\TenderYang\Desktop\SecsDriver\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.Form1.resources
+C:\Users\TenderYang\Desktop\SecsDriver\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.Resources.resources
+C:\Users\TenderYang\Desktop\SecsDriver\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.vbproj.GenerateResource.cache
+C:\Users\TenderYang\Desktop\SecsDriver\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.vbproj.CoreCompileInputs.cache
+C:\Users\TenderYang\Desktop\SecsDriver\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.exe
+C:\Users\TenderYang\Desktop\SecsDriver\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.xml
+C:\Users\TenderYang\Desktop\SecsDriver\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.pdb
+D:\AUO Project\進行中\Secs Driver 開發\SecsDriver\ver6\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.exe.config
+D:\AUO Project\進行中\Secs Driver 開發\SecsDriver\ver6\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.exe
+D:\AUO Project\進行中\Secs Driver 開發\SecsDriver\ver6\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.pdb
+D:\AUO Project\進行中\Secs Driver 開發\SecsDriver\ver6\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.xml
+D:\AUO Project\進行中\Secs Driver 開發\SecsDriver\ver6\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.Form1.resources
+D:\AUO Project\進行中\Secs Driver 開發\SecsDriver\ver6\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.Resources.resources
+D:\AUO Project\進行中\Secs Driver 開發\SecsDriver\ver6\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.vbproj.GenerateResource.cache
+D:\AUO Project\進行中\Secs Driver 開發\SecsDriver\ver6\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.vbproj.CoreCompileInputs.cache
+D:\AUO Project\進行中\Secs Driver 開發\SecsDriver\ver6\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.exe
+D:\AUO Project\進行中\Secs Driver 開發\SecsDriver\ver6\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.xml
+D:\AUO Project\進行中\Secs Driver 開發\SecsDriver\ver6\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.pdb
+D:\AUO Project\Source Code\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.exe.config
+D:\AUO Project\Source Code\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.exe
+D:\AUO Project\Source Code\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.pdb
+D:\AUO Project\Source Code\SecsDriver_VB\SecsDriver_VB\bin\Debug\SecsDriver_VB.xml
+D:\AUO Project\Source Code\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.Form1.resources
+D:\AUO Project\Source Code\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.Resources.resources
+D:\AUO Project\Source Code\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.vbproj.GenerateResource.cache
+D:\AUO Project\Source Code\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.vbproj.CoreCompileInputs.cache
+D:\AUO Project\Source Code\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.exe
+D:\AUO Project\Source Code\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.xml
+D:\AUO Project\Source Code\SecsDriver_VB\SecsDriver_VB\obj\Debug\SecsDriver_VB.pdb
