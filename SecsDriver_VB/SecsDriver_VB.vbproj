@@ -82,6 +82,7 @@
     </Compile>
     <Compile Include="SecsDriver\IniFile.vb" />
     <Compile Include="SecsDriver\ItemFormat.vb" />
+    <Compile Include="SecsDriver\Log.vb" />
     <Compile Include="SecsDriver\MessageFormat.vb" />
     <Compile Include="My Project\AssemblyInfo.vb" />
     <Compile Include="My Project\Application.Designer.vb">
@@ -109,6 +110,7 @@
     <Compile Include="SocketDriver\Interface\IFTcpServer.vb" />
     <Compile Include="SocketDriver\Client.vb" />
     <Compile Include="SocketDriver\Server.vb" />
+    <Compile Include="TextHandler\TextHandler.vb" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Form1.resx">
