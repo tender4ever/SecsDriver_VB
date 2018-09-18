@@ -13,6 +13,10 @@ Namespace SecsDriver
         Private sItemFormat As ItemFormat                               ' Item Format
 
 
+        ' Lock 物件
+        Private Shared thisLock As Object = New Object
+
+
         ' ----------------------- Property ------------------------------
 
         ' 讀取 ItemList
@@ -194,6 +198,7 @@ Namespace SecsDriver
         Public Property ItemNumber As Int32
 
             Get
+
                 If sItemFormat.LengthBytes Is Nothing Then
 
                     ' ------------ 假如 LengthBytes = Nothing --------------
@@ -799,10 +804,16 @@ Namespace SecsDriver
                 temp += Me.sItemFormat.FormatByte.ToString("X2") & " "
 
                 ' LengthBytes
-                For i As Integer = 0 To Me.sItemFormat.LengthBytes.Length - 1 Step +1
+                If Me.sItemFormat.LengthBytes IsNot Nothing Then
 
-                    temp += Me.sItemFormat.LengthBytes(i).ToString("X2") & " "
-                Next
+
+                    For i As Integer = 0 To Me.sItemFormat.LengthBytes.Length - 1 Step +1
+
+                        temp += Me.sItemFormat.LengthBytes(i).ToString("X2") & " "
+                    Next
+
+                End If
+
 
                 ' DataBytes
                 If Me.sItemFormat.DataBytes IsNot Nothing Then
@@ -817,6 +828,74 @@ Namespace SecsDriver
             End If
 
             Return temp
+
+        End Function
+
+
+        ' 使用 ItemName 取得 ItemMap 中的 SecsItem
+        Public Function GetItemByName(ByRef ItemName As String) As SecsItem
+
+            If Me.ItemMap.Count <> 0 Then
+
+                Try
+                    Dim item As SecsItem = Me.ItemMap(ItemName)
+
+                    If item IsNot Nothing Then
+                        Return item
+                    End If
+
+                Catch ex As Exception
+
+                    Return Nothing
+                End Try
+
+            Else
+                Return Nothing
+            End If
+
+        End Function
+
+
+        ' 將 ItemValue 轉換成 String
+        Public Function ItemValueString() As String
+
+            Dim itemString As String = Nothing
+
+            If Me.ItemValue IsNot Nothing Then
+
+                For i As Integer = 1 To Me.ItemValue.Count
+
+                    If Me.ItemType = "B" Then
+
+                        Dim tempByte As Byte()
+
+                        If i = Me.ItemValue.Count Then
+                            tempByte = Me.ItemValue(i)
+                            itemString = itemString & tempByte(0).ToString
+                        Else
+                            tempByte = Me.ItemValue(i)
+                            itemString = itemString & tempByte(0).ToString + " "
+
+                        End If
+
+                    Else
+
+                        If i = Me.ItemValue.Count Then
+
+                            itemString = itemString + Convert.ToString(Me.ItemValue(i))
+                        Else
+                            itemString = itemString + Convert.ToString(Me.ItemValue(i)) + " "
+                        End If
+
+                    End If
+
+                Next
+
+                Return itemString
+
+            End If
+
+            Return Nothing
 
         End Function
 
@@ -841,6 +920,7 @@ Namespace SecsDriver
                         Next
 
                         ' 設定 DataBytes
+
                         sItemFormat.DataBytes = Encoding.ASCII.GetBytes(sItemValue(1))
 
                         ' 設定 ItemNumber
@@ -862,7 +942,7 @@ Namespace SecsDriver
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(0) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
-                            temp.CopyTo(insertByte, i - 1)
+                            Array.Copy(temp, 0, insertByte, i - 1, 1)
                         Next
                         sItemFormat.DataBytes = insertByte
 
@@ -885,7 +965,7 @@ Namespace SecsDriver
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(0) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
-                            temp.CopyTo(insertByte, i - 1)
+                            Array.Copy(temp, 0, insertByte, i - 1, 1)
                         Next
                         sItemFormat.DataBytes = insertByte
 
@@ -949,7 +1029,7 @@ Namespace SecsDriver
                         Next
 
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 4 - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 4) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(3) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
@@ -985,7 +1065,7 @@ Namespace SecsDriver
                         Next
 
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 8 - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 8) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(7) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
@@ -1073,7 +1153,7 @@ Namespace SecsDriver
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(0) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
-                            temp.CopyTo(insertByte, i - 1)
+                            Array.Copy(temp, 0, insertByte, i - 1, 1)
                         Next
                         sItemFormat.DataBytes = insertByte
 
@@ -1111,11 +1191,11 @@ Namespace SecsDriver
                     Case "B"
 
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(0) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
-                            temp.CopyTo(insertByte, i - 1)
+                            Array.Copy(temp, 0, insertByte, i - 1, 1)
                         Next
                         sItemFormat.DataBytes = insertByte
 
@@ -1155,11 +1235,11 @@ Namespace SecsDriver
                     Case "Boolean"
 
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(0) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
-                            temp.CopyTo(insertByte, i - 1)
+                            Array.Copy(temp, 0, insertByte, i - 1, 1)
                         Next
                         sItemFormat.DataBytes = insertByte
 
@@ -1197,11 +1277,11 @@ Namespace SecsDriver
                     Case "Boolean"
 
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(0) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
-                            temp.CopyTo(insertByte, i - 1)
+                            Array.Copy(temp, 0, insertByte, i - 1, 1)
                         Next
                         sItemFormat.DataBytes = insertByte
 
@@ -1241,7 +1321,7 @@ Namespace SecsDriver
                     Case "F4"
 
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 4 - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 4) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(3) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
@@ -1284,7 +1364,7 @@ Namespace SecsDriver
                     Case "F4"
 
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 4 - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 4) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(3) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
@@ -1328,7 +1408,7 @@ Namespace SecsDriver
 
                     Case "F8"
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 8 - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 8) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(7) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
@@ -1370,7 +1450,7 @@ Namespace SecsDriver
 
                     Case "F8"
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 8 - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 8) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(7) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
@@ -1415,11 +1495,11 @@ Namespace SecsDriver
                     Case "I1"
 
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(0) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
-                            temp.CopyTo(insertByte, i - 1)
+                            Array.Copy(temp, 0, insertByte, i - 1, 1)
                         Next
                         sItemFormat.DataBytes = insertByte
 
@@ -1430,7 +1510,7 @@ Namespace SecsDriver
 
                     Case "I2"
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 2 - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 2) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(1) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
@@ -1473,11 +1553,11 @@ Namespace SecsDriver
                     Case "I1"
 
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(0) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
-                            temp.CopyTo(insertByte, i - 1)
+                            Array.Copy(temp, 0, insertByte, i - 1, 1)
                         Next
                         sItemFormat.DataBytes = insertByte
 
@@ -1489,7 +1569,7 @@ Namespace SecsDriver
                     Case "I2"
 
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 2 - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 2) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(1) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
@@ -1534,7 +1614,7 @@ Namespace SecsDriver
                     Case "I4"
 
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 4 - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 4) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(3) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
@@ -1576,7 +1656,7 @@ Namespace SecsDriver
 
                     Case "I4"
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 4 - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 4) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(3) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
@@ -1620,7 +1700,7 @@ Namespace SecsDriver
 
                     Case "I8"
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 8 - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 8) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(7) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
@@ -1662,7 +1742,7 @@ Namespace SecsDriver
 
                     Case "I8"
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 8 - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 8) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(7) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
@@ -1706,11 +1786,11 @@ Namespace SecsDriver
 
                     Case "U1"
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(0) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
-                            temp.CopyTo(insertByte, i - 1)
+                            Array.Copy(temp, 0, insertByte, i - 1, 1)
                         Next
                         sItemFormat.DataBytes = insertByte
 
@@ -1721,7 +1801,7 @@ Namespace SecsDriver
 
                     Case "U2"
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 2 - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 2) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(1) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
@@ -1763,11 +1843,11 @@ Namespace SecsDriver
 
                     Case "U1"
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(0) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
-                            temp.CopyTo(insertByte, i - 1)
+                            Array.Copy(temp, 0, insertByte, i - 1, 1)
                         Next
                         sItemFormat.DataBytes = insertByte
 
@@ -1778,7 +1858,7 @@ Namespace SecsDriver
 
                     Case "U2"
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 2 - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 2) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(1) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
@@ -1822,7 +1902,7 @@ Namespace SecsDriver
 
                     Case "U4"
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 4 - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 4) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(3) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
@@ -1864,7 +1944,7 @@ Namespace SecsDriver
 
                     Case "U4"
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 4 - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 4) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(3) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
@@ -1909,7 +1989,7 @@ Namespace SecsDriver
                     Case "U8"
 
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 8 - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 8) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(7) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
@@ -1952,7 +2032,7 @@ Namespace SecsDriver
                     Case "U8"
 
                         ' 設定 DataBytes
-                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 8 - 1) {}
+                        Dim insertByte() As Byte = New Byte(sItemValue.Count * 8) {}
                         For i As Integer = 1 To sItemValue.Count Step +1
                             Dim temp(7) As Byte
                             temp = BitConverter.GetBytes(sItemValue(i))
@@ -1981,10 +2061,18 @@ Namespace SecsDriver
 
 
         ' 在 ItemList 後面加上新的 SecsItem
-        Public Sub AddItem(ByRef aSecsitem As SecsItem)
+        Public Sub AddItem()
+
+            If Me.ItemType <> "L" Then
+
+                Me.ItemType = "L"
+                Me.ItemNumber = 1
+            Else
+                Me.ItemNumber = Me.ItemNumber + 1
+            End If
 
             Dim sSecsItem As New SecsItem
-            sSecsItem.ItemList.Add(sSecsItem)
+            Me.ItemList.Add(sSecsItem)
 
         End Sub
 
@@ -1998,18 +2086,25 @@ Namespace SecsDriver
 
 
         ' 刪除 ItemList 中的 Item
-        Public Sub DeleteItem(ByRef aSecsitem As SecsItem, ByVal index As UInteger)
+        Public Sub DeleteItem(ByVal index As UInteger)
 
-            aSecsitem.ItemList.RemoveAt(index)
+            Me.ItemNumber = Me.ItemNumber - 1
+            Me.ItemList.RemoveAt(index)
 
         End Sub
 
 
         ' 在 ItemList 中插入新的 SecsItem
-        Public Sub InsertItem(ByRef aSecsItem As SecsItem, ByVal index As UInteger)
+        Public Sub InsertItem(ByVal index As UInteger)
 
+            If Me.ItemType <> "L" Then
+
+                Me.ItemType = "L"
+
+            End If
+            Me.ItemNumber = Me.ItemNumber + 1
             Dim sSecsitem As New SecsItem
-            aSecsItem.ItemList.Insert(index, sSecsitem)
+            Me.ItemList.Insert(index, sSecsitem)
 
         End Sub
 
@@ -2017,29 +2112,45 @@ Namespace SecsDriver
         ' Clone 
         Public Function Clone() As Object Implements ICloneable.Clone
 
-            ' 宣告 SecsItem 物件
-            Dim secsItem As New SecsItem
+            SyncLock thisLock
 
-            Try
-                secsItem.ItemList = Me.ItemList
-                secsItem.ItemMap = Me.ItemMap
-                secsItem.sItemType = Me.sItemType
-                secsItem.sItemNumber = Me.sItemNumber
-                secsItem.sItemValue = Me.sItemValue
-                secsItem.ItemName = Me.ItemName
-                secsItem.ItemDescription = Me.ItemDescription
-                secsItem.ItemMapsType = Me.ItemMapsType
-                secsItem.sItemFormat = Me.sItemFormat.Clone()
+                ' 宣告 SecsItem 物件
+                Dim secsItem As SecsItem = New SecsItem
 
-				Return secsItem
+                Try
+                    secsItem.sItemType = Me.sItemType
+                    secsItem.sItemNumber = Me.sItemNumber
 
-			Catch ex As Exception
+                    For Each item As Object In Me.sItemValue
+                        secsItem.sItemValue.Add(item)
+                    Next
 
-				secsItem.Finalize()
-				Return Nothing
-			End Try
+                    secsItem.ItemName = Me.ItemName
+                    secsItem.ItemDescription = Me.ItemDescription
 
-		End Function
+                    For Each item As String In Me.ItemMapsType
+                        secsItem.ItemMapsType.Add(item)
+                    Next
+
+                    For Each item As SecsItem In Me.ItemList
+                        secsItem.ItemList.Add(item.Clone)
+                    Next
+
+                    secsItem.ItemMap = New Dictionary(Of String, SecsItem)(Me.ItemMap)
+
+                    secsItem.sItemFormat = Me.sItemFormat.Clone()
+
+                    Return secsItem
+
+                Catch ex As Exception
+
+                    secsItem.Finalize()
+                    Return Nothing
+                End Try
+
+            End SyncLock
+
+        End Function
 
 
     End Class

@@ -16,6 +16,9 @@ Namespace SecsDriver
 		Protected sSType As Byte                    ' HSMS Message Header - SType
 		Protected sSystemBytes As Byte()            ' HSMS Message Header - System Bytes
 
+        ' Lock 物件
+        Private Shared thisLock As Object = New Object
+
 
         ' ---------------- Property ----------------------
 
@@ -229,27 +232,31 @@ Namespace SecsDriver
         ' Clone 
         Public Function Clone() As Object Implements ICloneable.Clone
 
-            ' 宣告 MessageFormat 物件
-            Dim messageFormat As New MessageFormat
+            SyncLock thisLock
 
-            Try
-                Array.Copy(Me.sLength, messageFormat.sLength, 4)                ' Length Bytes
-                Array.Copy(Me.sDeviceID, messageFormat.sDeviceID, 2)            ' Device ID
-                Array.Copy(Me.sHeaderByte, messageFormat.sHeaderByte, 2)        ' Header Byte
-                Array.Copy(Me.sSystemBytes, messageFormat.sSystemBytes, 4)      ' System Bytes
-                messageFormat.sRBit = Me.sRBit                                  ' RBit
-                messageFormat.sWBit = Me.sWBit                                  ' WBit
-                messageFormat.sPType = Me.sPType                                ' PType
-                messageFormat.sSType = Me.sSType                                ' SType
+                ' 宣告 MessageFormat 物件
+                Dim messageFormat As MessageFormat = New MessageFormat
 
-                Return messageFormat
+                Try
+                    Array.Copy(Me.sLength, messageFormat.sLength, 4)                ' Length Bytes
+                    Array.Copy(Me.sDeviceID, messageFormat.sDeviceID, 2)            ' Device ID
+                    Array.Copy(Me.sHeaderByte, messageFormat.sHeaderByte, 2)        ' Header Byte
+                    Array.Copy(Me.sSystemBytes, messageFormat.sSystemBytes, 4)      ' System Bytes
+                    messageFormat.sRBit = Me.sRBit                                  ' RBit
+                    messageFormat.sWBit = Me.sWBit                                  ' WBit
+                    messageFormat.sPType = Me.sPType                                ' PType
+                    messageFormat.sSType = Me.sSType                                ' SType
 
-            Catch ex As Exception
+                    Return messageFormat
 
-                messageFormat.Finalize()
-                Return Nothing
+                Catch ex As Exception
 
-            End Try
+                    messageFormat.Finalize()
+                    Return Nothing
+
+                End Try
+
+            End SyncLock
 
         End Function
 

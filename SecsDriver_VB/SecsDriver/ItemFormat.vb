@@ -4,6 +4,11 @@ Namespace SecsDriver
 
 	Friend Class ItemFormat : Implements ICloneable
 
+
+        ' Lock 物件
+        Private Shared thisLock As Object = New Object
+
+
         ' -------------------- Property ------------------------
 
         ' 存取 Format Byte - 1 Byte
@@ -70,23 +75,31 @@ Namespace SecsDriver
         ' Clone
         Public Function Clone() As Object Implements ICloneable.Clone
 
-            Dim itemFormat As New ItemFormat
+            SyncLock thisLock
 
-            Try
-                itemFormat.FormatByte = Me.FormatByte
-                itemFormat.LengthBytes = Me.LengthBytes
-                itemFormat.DataBytes = Me.DataBytes
+                Dim itemFormat As ItemFormat = New ItemFormat
 
-                Return itemFormat
+                Try
+                    itemFormat.FormatByte = Me.FormatByte
 
-			Catch ex As Exception
+                    itemFormat.LengthBytes = New Byte() {}
+                    itemFormat.LengthBytes = Me.LengthBytes
 
-				itemFormat.Finalize()
-                Return Nothing
+                    itemFormat.DataBytes = New Byte() {}
+                    itemFormat.DataBytes = Me.DataBytes
 
-            End Try
+                    Return itemFormat
 
-		End Function
+                Catch ex As Exception
+
+                    itemFormat.Finalize()
+                    Return Nothing
+
+                End Try
+
+            End SyncLock
+
+        End Function
 
 
 	End Class

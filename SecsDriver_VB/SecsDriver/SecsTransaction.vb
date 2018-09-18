@@ -6,9 +6,9 @@ Namespace SecsDriver
 	Public Class SecsTransaction
 
 
-        Private sTransactionStartTime As DateTime
+        Private sTransactionStartTime As DateTime       ' Transaction Start Time 
 
-        Public sTimeoutList As List(Of Timeout)
+        Protected Friend sTimeoutList As List(Of Timeout)         ' Timeout List
 
 
         ' ----------------------- Property ------------------------------
@@ -28,7 +28,7 @@ Namespace SecsDriver
         ' ----------------------- Property ------------------------------
 
         ' 建構子
-        Public Sub New()
+        Protected Friend Sub New()
 
             State = enumSecsTransactionState.Create
 
@@ -40,7 +40,7 @@ Namespace SecsDriver
 
 
         ' 設定 Timeout
-        Public Sub SetTimeout(ByRef sTimeoutType As enumTimeout, ByRef siniFile As IniFile)
+        Protected Friend Sub SetTimeout(ByRef sTimeoutType As enumTimeout, ByRef siniFile As IniFile)
 
             Select Case sTimeoutType
 

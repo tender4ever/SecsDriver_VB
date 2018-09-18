@@ -8,8 +8,12 @@ Namespace SecsDriver
 
 	Public Class SXML
 
-		Private sMessageList As List(Of SecsMessage)                    ' Message List
-		Private sMessageMap As Dictionary(Of String, SecsMessage)       ' Message Map
+        Public sMessageList As List(Of SecsMessage)                    ' Message List
+        Public sMessageMap As Dictionary(Of String, SecsMessage)       ' Message Map
+
+        Protected Friend sStreamList As List(Of String)                 ' Stream List
+        Protected Friend sFunctionList As List(Of String)               ' Function List
+        Protected Friend sDontNeedToReplyList As List(Of String)        ' Dont Need To Reply List
 
 
         ' 建構子
@@ -17,6 +21,11 @@ Namespace SecsDriver
 
             sMessageList = New List(Of SecsMessage)()
             sMessageMap = New Dictionary(Of String, SecsMessage)
+
+            sStreamList = New List(Of String)
+            sFunctionList = New List(Of String)
+
+            sDontNeedToReplyList = New List(Of String)
 
         End Sub
 
@@ -50,8 +59,21 @@ Namespace SecsDriver
                 ' 設定 Stream
                 secsMessage.Stream = UInteger.Parse(message.Element("Stream"))
 
+                If sStreamList.Contains(secsMessage.Stream.ToString) = False Then
+
+                    sStreamList.Add(secsMessage.Stream.ToString)
+
+                End If
+
                 ' 設定 Function
                 secsMessage.[Function] = Integer.Parse(message.Element("Function"))
+
+                If sFunctionList.Contains(secsMessage.Stream.ToString & secsMessage.Function.ToString) = False Then
+
+                    sFunctionList.Add(secsMessage.Stream.ToString & secsMessage.Function.ToString)
+
+                End If
+
 
                 ' 設定 WBit
                 If message.Element("WBit") IsNot Nothing Then
@@ -66,8 +88,10 @@ Namespace SecsDriver
                 ' 設定 AutoReply
                 If message.Element("AutoReply") IsNot Nothing Then
 
-					secsMessage.AutoReply = message.Element("AutoReply").Value
-				End If
+                    secsMessage.AutoReply = message.Element("AutoReply").Value
+                Else
+                    sDontNeedToReplyList.Add(secsMessage.MessageName)
+                End If
 
 
 				' 設定 SecsItem
@@ -243,6 +267,8 @@ Namespace SecsDriver
                 ' 比對 Message 格式、SecsItem 格式
                 For i As Integer = 0 To Me.sMessageList.Count - 1 Step +1
 
+                    Dim a As String = aSecsMessage.CheckMessageFormat()
+                    Dim b As String = Me.sMessageList(i).CheckMessageFormat()
                     If aSecsMessage.CheckMessageFormat() = Me.sMessageList(i).CheckMessageFormat() Then
 
                         If aSecsMessage.secsItem Is Nothing Then
@@ -393,24 +419,26 @@ Namespace SecsDriver
 		End Function
 
 
-		' 使用 Message Name 找出 SecsMessage 
-		Public Function FindMessageByMessageName(ByVal aMessageName As String) As SecsMessage
+        ' 使用 Message Name 找出 SecsMessage 
+        Public Function FindMessageByMessageName(ByRef aMessageName As String) As SecsMessage
 
             Try
                 If sMessageMap(aMessageName) IsNot Nothing Then
 
                     Return sMessageMap(aMessageName).Clone()
+
                 End If
+
                 Return Nothing
 
             Catch ex As Exception
 
                 Return Nothing
-			End Try
+            End Try
 
-		End Function
+        End Function
 
-	End Class
+    End Class
 
 End Namespace
 

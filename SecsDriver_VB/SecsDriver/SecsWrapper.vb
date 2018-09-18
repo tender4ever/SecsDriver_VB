@@ -4,6 +4,7 @@ Imports System.IO
 Imports Microsoft.VisualBasic.FileIO
 Imports SecsDriver_VB.SocketDriver
 Imports System.Threading
+Imports System.Collections.Concurrent
 
 Namespace SecsDriver
 
@@ -40,35 +41,43 @@ Namespace SecsDriver
 
     Public Class SecsWrapper : Implements IFMessageListener
 
-		' Send Transaction Map
-		Private SendTransactionMap As Dictionary(Of Byte(), SecsTransaction)
+        Private ReceiveMessageQueue As ConcurrentQueue(Of Byte())                                       ' Receive Message Queue
 
-		' Receive Transaction Map
-		Private ReceiveTransactionMap As Dictionary(Of Byte(), SecsTransaction)
+        Private PrimarySendQueue As ConcurrentQueue(Of SecsMessage)                                     ' Primary Message Send Queue
 
-        ' System Bytes
-        Private systemBytesCount As UInteger = Now.Millisecond
+        Private SecondarySendQueue As ConcurrentQueue(Of SecsTransaction)                               ' Secondary Message Send Queue
+
+
+        Private Shared SendTransactionMap As ConcurrentDictionary(Of String, SecsTransaction)           ' Send Transaction Map
+
+        Private Shared ReceiveTransactionMap As ConcurrentDictionary(Of String, SecsTransaction)        ' Receive Transaction Map
+
+
+        Private systemBytesCount As UInteger = Now.Millisecond                                          ' System Bytes 計數
+
 
 
         ' ---------------- 物件 -------------------------------
 
         Public siniFile As IniFile                                  ' Ini File
-        Private sSXML As SXML                                       ' SXML
+        Public sSXML As SXML                                        ' SXML
         Private sServer As Server                                   ' Socket Server
         Private sClient As Client                                   ' Socket Client
-        Private sSecsMessage As SecsMessage                         ' SecsMessage
-        Private sTransaction As SecsTransaction                     ' Transaction
+        'Private sSecsMessage As SecsMessage                         ' SecsMessage
+        'Private sTransaction As SecsTransaction                     ' Transaction
         Private sTimeout As Timeout                                 ' Timeout
         Private sTimeoutList As List(Of Timeout)                    ' TimeoutList
-        Private sBinaryLog As FileStream                            ' Binary Log
-        Private sTxLog As FileStream                                ' Tx Log
+        Private sLog As Log                                         ' Log
 
 
         ' SECS 連線狀態
         Private SocketState As enumSecsConnectionState
 
+
         ' Lock 物件
-        Private Shared thisLock As Object = New Object
+        Private Shared CheckSendTransactionMapLock As Object = New Object
+        Private Shared CheckReceiveTransactionMapLock As Object = New Object
+
 
         ' ----------------------------- Event --------------------------------- 
         Public Event OnSecsConnectStateChange As delegateSecsConnectStateChange
@@ -87,9 +96,13 @@ Namespace SecsDriver
         ' 建構子
         Public Sub New()
 
-            SendTransactionMap = New Dictionary(Of Byte(), SecsTransaction)
-            ReceiveTransactionMap = New Dictionary(Of Byte(), SecsTransaction)
+            ReceiveMessageQueue = New ConcurrentQueue(Of Byte())
+            PrimarySendQueue = New ConcurrentQueue(Of SecsMessage)
+            SecondarySendQueue = New ConcurrentQueue(Of SecsTransaction)
+            SendTransactionMap = New ConcurrentDictionary(Of String, SecsTransaction)
+            ReceiveTransactionMap = New ConcurrentDictionary(Of String, SecsTransaction)
             sTimeoutList = New List(Of Timeout)
+            sLog = New Log()
 
         End Sub
 
@@ -100,33 +113,26 @@ Namespace SecsDriver
             ' IniFile Path
             Dim path As String = Application.StartupPath
 
+
+            ' 載入 iniFile
             Try
-                ' 載入 iniFile
                 siniFile = New IniFile(path & "\config.ini")
-
-                ' 建立 Log Txt 檔
-                sBinaryLog = New FileStream(Application.StartupPath & "\SECSLog\BinaryLog.txt", FileMode.OpenOrCreate, FileAccess.ReadWrite)
-                sBinaryLog.Close()
-                sTxLog = New FileStream(Application.StartupPath & "\SECSLog\TxLog.txt", FileMode.OpenOrCreate, FileAccess.ReadWrite)
-                sTxLog.Close()
-
             Catch ex As Exception
 
                 RaiseEvent OnError("Load IniFile Error !")
-
             End Try
 
+
+            ' 載入 SXML
             Try
-                ' 載入 SXML
                 sSXML = New SXML()
                 sSXML.FilePath = siniFile.SXMLPath
                 sSXML.LoadMessage()
-
             Catch ex As Exception
 
                 RaiseEvent OnError("Load SXML Error !")
-
             End Try
+
 
             ' 開啟 SECS
             If siniFile IsNot Nothing And sSXML IsNot Nothing Then
@@ -163,12 +169,12 @@ Namespace SecsDriver
         End Sub
 
 
-		' 使用 Message Name 找 Message
-		Public Function GetMessageByName(ByVal aMessageName As String) As SecsMessage
+        ' 使用 Message Name 找 Message
+        Public Function GetMessageByName(ByRef aMessageName As String) As SecsMessage
 
-			Try
-				' 使用 Message Name 找 SecsMessage
-				If sSXML.FindMessageByMessageName(aMessageName) IsNot Nothing Then
+            Try
+                ' 使用 Message Name 找 SecsMessage
+                If sSXML.FindMessageByMessageName(aMessageName) IsNot Nothing Then
 
                     Return sSXML.FindMessageByMessageName(aMessageName)
 
@@ -177,67 +183,90 @@ Namespace SecsDriver
                 ' 找不到 Message 則 Return Nothing
                 Return Nothing
 
-			Catch ex As Exception
+            Catch ex As Exception
 
                 Return Nothing
 
             End Try
 
-		End Function
+        End Function
 
 
-		' Send Primary Message
-		Public Sub SendPrimary(ByRef aSecsMessage As SecsMessage)
+        ' 供外部使用的 Send Primary
+        Public Sub SendPrimary(ByRef aSecsMessage As SecsMessage)
+
+            PrimarySendQueue.Enqueue(aSecsMessage)
+
+        End Sub
+
+
+        ' Send Primary Message
+        Private Sub SendPrimary(ByVal sSecsMessage As Object)
+
+            Dim aSecsMessage As SecsMessage = New SecsMessage
+            aSecsMessage = CType(sSecsMessage, SecsMessage)
+            Dim sTransaction As SecsTransaction
 
             Try
-                SyncLock thisLock
+                ' 檢查 System Bytes
+                aSecsMessage.messageFormat.SystemBytes = BitConverter.GetBytes(getSystemByte())
+                Array.Reverse(aSecsMessage.messageFormat.SystemBytes)
 
-                    ' 檢查 System Bytes
-                    aSecsMessage.messageFormat.SystemBytes = BitConverter.GetBytes(getSystemByte())
-                    Array.Reverse(aSecsMessage.messageFormat.SystemBytes)
 
+                ' 檢查 Device ID
+                If siniFile.Role = enumRole.sHost And aSecsMessage.MessageType = enumMessageType.sDataMessage Then
+
+                    aSecsMessage.messageFormat.DeviceID(0) = Convert.ToByte(siniFile.DeviceID)
+
+                ElseIf siniFile.Role = enumRole.sEquipment And aSecsMessage.MessageType = enumMessageType.sDataMessage Then
+
+                    aSecsMessage.messageFormat.DeviceID(1) = Convert.ToByte(siniFile.DeviceID)
+
+                End If
+
+
+                ' 檢查 Messae 是否為不需回覆的 Message
+                If sSXML.sDontNeedToReplyList.Contains(aSecsMessage.MessageName) = True Then
+
+                    ' 紀錄 Log
+                    If siniFile.BinaryLog = True Then
+                        sLog.DoBinaryLog(aSecsMessage.ConvertToBinaryLog("SND"))
+                    End If
+
+                    If siniFile.TxLog = True Then
+                        sLog.DoTxLog(aSecsMessage.ConvertToSML("PrimaryOut"))
+                    End If
+
+                    ' NEW 一個 SecsTransaction
+                    sTransaction = New SecsTransaction()
+                    sTransaction.Primary = aSecsMessage
+                    RaiseEvent OnPrimarySent(sTransaction)
+
+                    SocketSend(aSecsMessage)
+
+                Else
                     ' New 一個 SecsTransaction，並把 Primary 放在裡面
-                    Dim sTransaction As SecsTransaction = New SecsTransaction()
+                    sTransaction = New SecsTransaction()
                     sTransaction.Primary = aSecsMessage
 
                     ' SendTransactionMap 新增此 Transaction
-                    SyncLock SendTransactionMap
-                        SendTransactionMap.Add(aSecsMessage.messageFormat.SystemBytes, sTransaction)
-                    End SyncLock
+                    Dim SystemByteString As String = Nothing
 
-                    ' 如果是 Data Message，則設定 T3 Timeout 
-                    ' 如果是 Control Message，則設定 T6 Timeout 
-                    If aSecsMessage.MessageType = enumMessageType.sDataMessage Then
-                        sTransaction.SetTimeout(enumTimeout.T3, siniFile)
-                    Else
-                        If aSecsMessage.MessageType <> enumMessageType.sSeparateRequest Then
-                            sTransaction.SetTimeout(enumTimeout.T6, siniFile)
-                        End If
-                    End If
+                    For i As Integer = 0 To aSecsMessage.messageFormat.SystemBytes.Length - 1
+                        SystemByteString = SystemByteString & aSecsMessage.messageFormat.SystemBytes(i)
+                    Next
 
-                    ' 如果是 Active，則使用 Client
-                    ' 如果是 Passive，則使用 Server
-                    If Me.siniFile.Entity = enumSecsEntity.sActive Then
-                        sClient.send(aSecsMessage.ConvertToBytes())
-                    Else
-                        sServer.send(aSecsMessage.ConvertToBytes())
-                    End If
+                    SendTransactionMap.TryAdd(SystemByteString, sTransaction)
 
-                    sTransaction.State = enumSecsTransactionState.PrimarySent
-                    RaiseEvent OnPrimarySent(sTransaction)
-
-                    ' 紀錄 Log
-                    DoLog(sTransaction.Primary.ConvertToBinaryLog("SND"), sTransaction.Primary.ConvertToSML("PrimaryOut"))
-
-                End SyncLock
+                End If
 
             Catch ex As Exception
 
-                RaiseEvent OnMessageError(sTransaction.Primary, "Send Primary Error")
+                RaiseEvent OnMessageError(aSecsMessage, "Send Primary Error")
 
                 ' 刪除 Primary
-                If sTransaction.Primary IsNot Nothing Then
-                    sTransaction.Primary.Dispose()
+                If aSecsMessage IsNot Nothing Then
+                    aSecsMessage.Dispose()
                 End If
 
                 ' 刪除 Transaction
@@ -248,69 +277,69 @@ Namespace SecsDriver
         End Sub
 
 
+        ' 供外部使用的 Send Secondary
+        Public Sub SendSecondary(ByRef aSecsTransaction As SecsTransaction)
+
+            SecondarySendQueue.Enqueue(aSecsTransaction)
+
+        End Sub
+
+
         ' Send Secondary Message
-        Public Sub SendSecondary(ByRef aTransaction As SecsTransaction)
+        Private Sub SendSecondary(ByVal sSecsTransaction As Object)
+
+            Dim aSecsTransaction As SecsTransaction = New SecsTransaction
+            aSecsTransaction = CType(sSecsTransaction, SecsTransaction)
 
             Try
-                SyncLock thisLock
+                If ReceiveTransactionMap.Count > 0 Then
 
-                    ' 如果是 Data Message，則解除 T3 Timeout 
-                    ' 如果是 Control Message，則解除 T6 Timeout
-                    If aTransaction.sTimeoutList.Count > 0 Then
+                    ' 找出 Transaction
+                    Dim SystemByteString As String = Nothing
 
-                        For i As Integer = 0 To aTransaction.sTimeoutList.Count - 1 Step +1
-                            If aTransaction.sTimeoutList(i).sTimeoutType = enumTimeout.T3 Then
+                    For i As Integer = 0 To aSecsTransaction.Primary.messageFormat.SystemBytes.Length - 1
+                        SystemByteString = SystemByteString & aSecsTransaction.Primary.messageFormat.SystemBytes(i)
+                    Next
 
-                                aTransaction.sTimeoutList(i) = Nothing
-                                aTransaction.sTimeoutList.RemoveAt(i)
-                                Exit For
+                    Dim tempTransaction As SecsTransaction = ReceiveTransactionMap.Item(SystemByteString)
 
-                            ElseIf aTransaction.sTimeoutList(i).sTimeoutType = enumTimeout.T6 Then
+                    If tempTransaction IsNot Nothing Then
 
-                                aTransaction.sTimeoutList(i) = Nothing
-                                aTransaction.sTimeoutList.RemoveAt(i)
-                                Exit For
+                        ' 檢查 System Bytes
+                        aSecsTransaction.Secondary.messageFormat.SystemBytes = aSecsTransaction.Primary.messageFormat.SystemBytes
 
-                            End If
-                        Next
+                        ' 檢查 Device ID
+                        If siniFile.Role = enumRole.sHost And aSecsTransaction.Secondary.MessageType = enumMessageType.sDataMessage Then
 
-                    End If
+                            aSecsTransaction.Secondary.messageFormat.DeviceID(0) = Convert.ToByte(siniFile.DeviceID)
+                            aSecsTransaction.Secondary.messageFormat.DeviceID(1) = tempTransaction.Primary.messageFormat.DeviceID(1)
 
-                    ' 如果是 Active，則使用 Client
-                    ' 如果是 Passive，則使用 Server
-                    If Me.siniFile.Entity = enumSecsEntity.sActive Then
+                        ElseIf siniFile.Role = enumRole.sEquipment And aSecsTransaction.Secondary.MessageType = enumMessageType.sDataMessage Then
 
-                        sClient.send(aTransaction.Secondary.ConvertToBytes())
+                            aSecsTransaction.Secondary.messageFormat.DeviceID(0) = tempTransaction.Primary.messageFormat.DeviceID(0)
+                            aSecsTransaction.Secondary.messageFormat.DeviceID(1) = Convert.ToByte(siniFile.DeviceID)
+
+                        End If
+
+                        tempTransaction.Secondary = aSecsTransaction.Secondary
                     Else
+                        RaiseEvent OnMessageError(aSecsTransaction.Secondary, "Transaction Not Found")
 
-                        sServer.send(aTransaction.Secondary.ConvertToBytes())
                     End If
 
-                    aTransaction.State = enumSecsTransactionState.SecondarySent
-                    aTransaction.State = enumSecsTransactionState.WaitForDelete
-                    RaiseEvent OnSecondarySent(aTransaction)
+                Else
+                    RaiseEvent OnMessageError(aSecsTransaction.Secondary, "Transaction Not Found")
 
-                    ' 紀錄 Log
-                    DoLog(aTransaction.Secondary.ConvertToBinaryLog("SND"), aTransaction.Secondary.ConvertToSML("SecondaryOut"))
-
-                End SyncLock
+                End If
 
             Catch ex As Exception
 
-                RaiseEvent OnMessageError(aTransaction.Secondary, "Send Secondary Error")
-
-                ' 刪除 Primary
-                If aTransaction.Primary IsNot Nothing Then
-                    aTransaction.Primary.Dispose()
-                End If
+                RaiseEvent OnMessageError(aSecsTransaction.Secondary, "Send Secondary Error")
 
                 ' 刪除 Secondary
-                If aTransaction.Secondary IsNot Nothing Then
-                    aTransaction.Secondary.Dispose()
+                If aSecsTransaction.Secondary IsNot Nothing Then
+                    aSecsTransaction.Secondary.Dispose()
                 End If
-
-                ' 刪除 Transaction
-                aTransaction = Nothing
 
             End Try
 
@@ -328,6 +357,11 @@ Namespace SecsDriver
 			sWatchSecsConnectThread.IsBackground = True
 			sWatchSecsConnectThread.Start()
 
+            ' New 一個 Thread 來處理 Queue
+            Dim sScheduleThread As New Thread(New ThreadStart(AddressOf Schedule))
+            sScheduleThread.IsBackground = True
+            sScheduleThread.Start()
+
             ' New 一個 Thread 來持續檢查是否有 Timeout
             Dim sWatchTimeoutThread As New Thread(New ThreadStart(AddressOf CheckTimeout))
             sWatchTimeoutThread.IsBackground = True
@@ -338,19 +372,14 @@ Namespace SecsDriver
             sWatchIniFileThread.IsBackground = True
             sWatchIniFileThread.Start()
 
-            ' New 一個 Thread 來持續檢查 Log.txt是否過大
-            Dim sWatchLogTxtThread As New Thread(New ThreadStart(AddressOf CheckLogTxt))
-            sWatchLogTxtThread.IsBackground = True
-            sWatchLogTxtThread.Start()
-
         End Sub
 
 
         ' 檢查連線狀況
         Private Sub SecsConnect()
 
-            Dim sendSelectRequestCountdown As Integer = 0
-            Dim sendLinktestRequestCountdown As Integer = 0
+            Dim sendSelectRequestCountdown As Integer = 0           ' 幾秒鐘後送出 Select Request
+            Dim sendLinktestRequestCountdown As Integer = 0         ' 幾秒鐘後送出 Linktest Request
 
             Do
                 Select Case SocketState
@@ -498,151 +527,301 @@ Namespace SecsDriver
         End Sub
 
 
+        ' 處理 Queue
+        Private Sub Schedule()
+
+            Do
+                ' 處理需要 Primary Send 的 Message
+                If PrimarySendQueue.Count > 0 Then
+
+                    Dim aSecsMessage As Object = Nothing
+                    PrimarySendQueue.TryDequeue(aSecsMessage)
+                    SendPrimary(aSecsMessage)
+
+                End If
+
+                CheckSendTransactionMap()
+
+                ' 處理需要 Secondary Send 的 Message
+                If SecondarySendQueue.Count > 0 Then
+
+                    Dim aSecsTransaction As Object = Nothing
+                    SecondarySendQueue.TryDequeue(aSecsTransaction)
+                    SendSecondary(aSecsTransaction)
+
+                End If
+
+                CheckReceiveTransactionMap()
+
+                ' 處理 Receive 的 Message
+                If ReceiveMessageQueue.Count > 0 Then
+
+                    Dim temp As Byte() = Nothing
+                    ReceiveMessageQueue.TryDequeue(temp)
+                    ParseMessage(temp)
+
+                End If
+
+                Application.DoEvents()
+                Thread.Sleep(10)
+
+            Loop While Not SocketState = enumSecsConnectionState.sSeparate
+
+        End Sub
+
+
         ' 檢察是否有 Timeout
         Private Sub CheckTimeout()
 
             Do
-                SyncLock thisLock
+                SyncLock sTimeoutList
 
-                    CheckSendTransactionMap()
+                    ' 檢察系統 Timeout
+                    If sTimeoutList.Count > 0 Then
 
-                    CheckReceiveTransactionMap()
+                        For i As Integer = 0 To sTimeoutList.Count - 1 Step +1
 
-                    SyncLock sTimeoutList
+                            Select Case sTimeoutList(i).sTimeoutType
 
-                        ' 檢察系統 Timeout
-                        If sTimeoutList.Count > 0 Then
+                                Case enumTimeout.T5
 
-                            For i As Integer = 0 To sTimeoutList.Count - 1 Step +1
+                                    If sTimeoutList(i).CheckTimeout() = True Then
 
-                                Select Case sTimeoutList(i).sTimeoutType
+                                        RaiseEvent OnTimeout("T5 Timeout")
 
-                                    Case enumTimeout.T5
+                                        ' 如果是 Active，則由 T5 Timeout 來重新連線
+                                        sTimeoutList(i) = Nothing
+                                        sTimeoutList.RemoveAt(i)
+                                        sClient.Reconnect()
 
-                                        If sTimeoutList(i).CheckTimeout() = True Then
+                                        Exit For
 
-                                            RaiseEvent OnTimeout("T5 Timeout")
+                                    End If
 
-                                            ' 如果是 Active，則由 T5 Timeout 來重新連線
-                                            sTimeoutList(i) = Nothing
-                                            sTimeoutList.RemoveAt(i)
-                                            sClient.Reconnect()
+                                Case enumTimeout.T7
 
-                                            Exit For
+                                    If sTimeoutList(i).CheckTimeout() = True Then
 
-                                        End If
+                                        RaiseEvent OnTimeout("T7 Timeout")
 
-                                    Case enumTimeout.T7
+                                        sTimeoutList(i) = Nothing
+                                        sTimeoutList.RemoveAt(i)
+                                        Exit For
 
-                                        If sTimeoutList(i).CheckTimeout() = True Then
+                                    End If
 
-                                            RaiseEvent OnTimeout("T7 Timeout")
+                                Case enumTimeout.T8
 
-                                            sTimeoutList(i) = Nothing
-                                            sTimeoutList.RemoveAt(i)
-                                            Exit For
+                                    If sTimeoutList(i).CheckTimeout() = True Then
 
-                                        End If
+                                        RaiseEvent OnTimeout("T8 Timeout")
 
-                                End Select
-                            Next
+                                        sTimeoutList(i) = Nothing
+                                        sTimeoutList.RemoveAt(i)
+                                        Exit For
 
-                        End If
+                                    End If
 
-                    End SyncLock
+                            End Select
+                        Next
+
+                    End If
 
                 End SyncLock
 
                 Application.DoEvents()
-                Thread.Sleep(1)
+                Thread.Sleep(1000)
 
             Loop While Not SocketState = enumSecsConnectionState.sSeparate
+
         End Sub
 
 
         ' 檢查 SendTransactionMap
         Private Sub CheckSendTransactionMap()
 
-            SyncLock SendTransactionMap
+            ' Clone 一份目前的 SendTransactionMap
+            Dim CloneSendTransactionMap As Dictionary(Of String, SecsTransaction)
+            CloneSendTransactionMap = New Dictionary(Of String, SecsTransaction)(SendTransactionMap)
 
-                ' 檢查 SendTransactionMap
-                If SendTransactionMap.Count > 0 Then
 
-                    For Each item In SendTransactionMap
+            If CloneSendTransactionMap.Count > 0 Then
 
-                        Select Case item.Value.State
+                For Each item In CloneSendTransactionMap
 
-                            Case enumSecsTransactionState.PrimarySent
+                    Select Case item.Value.State
 
-                                ' 檢查各個 Timeout
-                                If item.Value.sTimeoutList.Count > 0 Then
+                        Case enumSecsTransactionState.Create
 
+                            ' 當狀態為 Create 時，如果有 Primary 則送出 Message，並將狀態改為 PrimarySent
+
+                            If item.Value.Primary IsNot Nothing Then
+
+                                SocketSend(item.Value.Primary)
+
+                                ' 紀錄 Log
+                                If siniFile.BinaryLog = True Then
+                                    sLog.DoBinaryLog(item.Value.Primary.ConvertToBinaryLog("SND"))
+                                End If
+
+                                If siniFile.TxLog = True Then
+                                    sLog.DoTxLog(item.Value.Primary.ConvertToSML("PrimaryOut"))
+                                End If
+
+                                RaiseEvent OnPrimarySent(item.Value)
+
+                                SendTransactionMap.Item(item.Key).State = enumSecsTransactionState.PrimarySent
+
+                            End If
+
+                            Exit Select
+
+                        Case enumSecsTransactionState.PrimarySent
+
+                            ' 當狀態為 PrimarySent 時，如果有 Secondary 則送出 Message，並將狀態改為 SecondaryReceived
+                            ' 否則就設定 T3、T6 Timeout，並檢查是否發生 Timeout
+                            If item.Value.Secondary IsNot Nothing Then
+
+                                SendTransactionMap.Item(item.Key).sTimeoutList.Clear()
+                                SendTransactionMap.Item(item.Key).State = enumSecsTransactionState.SecondaryReceived
+
+                            Else
+                                If item.Value.sTimeoutList.Count <= 0 Then
+
+                                    ' 如果是 Data Message，則設定 T3 Timeout 
+                                    ' 如果是 Control Message，則設定 T6 Timeout 
+                                    If item.Value.Primary.MessageType = enumMessageType.sDataMessage Then
+
+                                        SendTransactionMap.Item(item.Key).SetTimeout(enumTimeout.T3, siniFile)
+                                    Else
+                                        If item.Value.Primary.MessageType <> enumMessageType.sSeparateRequest Then
+
+                                            SendTransactionMap.Item(item.Key).SetTimeout(enumTimeout.T6, siniFile)
+
+                                        End If
+
+                                    End If
+
+                                Else
+                                    ' 檢查各個 Timeout
                                     For i As Integer = 0 To item.Value.sTimeoutList.Count - 1 Step +1
 
                                         Select Case item.Value.sTimeoutList(i).sTimeoutType
 
                                             Case enumTimeout.T3
 
+                                                ' 發生 T3 Timeout
                                                 If item.Value.sTimeoutList(i).CheckTimeout = True Then
 
-                                                    If item.Value.Primary.MessageName IsNot Nothing Then
-                                                        RaiseEvent OnTimeout("Sent : " & item.Value.Primary.MessageName & " T3 Timeout")
-                                                    Else
-                                                        RaiseEvent OnTimeout("Sent : Control Message T3 Timeout")
+                                                    RaiseEvent OnTimeout("Sent : " & item.Value.Primary.MessageName & " T3 Timeout")
+
+                                                    ' 回覆 S9F9 
+                                                    Dim tempSecsMessage As SecsMessage = GetMessageByName("S9F9_TransactionTimerTimeout")
+                                                    Dim tempByte As Byte() = ConvertToBytes(item.Value.Primary)
+                                                    Array.Copy(tempByte, tempByte, 14)
+                                                    tempSecsMessage.secsItem.SetItemValue(tempByte)
+                                                    SendPrimary(tempSecsMessage)
+
+                                                    ' 清除 Primary Message
+                                                    If SendTransactionMap.Item(item.Key).Primary IsNot Nothing Then
+                                                        SendTransactionMap.Item(item.Key).Primary.Dispose()
                                                     End If
 
-                                                    If item.Value.Primary IsNot Nothing Then
-                                                        item.Value.Primary.Dispose()
-                                                    End If
-                                                    item.Value.sTimeoutList(i) = Nothing
-                                                    item.Value.sTimeoutList = Nothing
-                                                    SendTransactionMap.Remove(item.Key)
+                                                    ' 清除所有 Timeout 設定，並移除 Transaction
+                                                    SendTransactionMap.Item(item.Key).sTimeoutList(i) = Nothing
+                                                    SendTransactionMap.Item(item.Key).sTimeoutList = Nothing
+                                                    SendTransactionMap.TryRemove(item.Key, item.Value)
 
-                                                    Exit Sub
                                                 End If
 
                                             Case enumTimeout.T6
 
+                                                ' 發生 T6 Timeout
                                                 If item.Value.sTimeoutList(i).CheckTimeout = True Then
 
-                                                    If item.Value.Primary.MessageName IsNot Nothing Then
-                                                        RaiseEvent OnTimeout("Sent : " & item.Value.Primary.MessageName & " T6 Timeout")
-                                                    Else
-                                                        RaiseEvent OnTimeout("Sent : Control Message T6 Timeout")
+                                                    RaiseEvent OnTimeout("Sent : Control Message T6 Timeout")
+
+                                                    ' 回覆 S9F9
+                                                    Dim tempSecsMessage As SecsMessage = GetMessageByName("S9F9_TransactionTimerTimeout")
+                                                    Dim tempByte As Byte() = ConvertToBytes(item.Value.Primary)
+                                                    Array.Copy(tempByte, tempByte, 14)
+                                                    tempSecsMessage.secsItem.SetItemValue(tempByte)
+                                                    SendPrimary(tempSecsMessage)
+
+                                                    ' 清除 Primary Message
+                                                    If SendTransactionMap.Item(item.Key).Primary IsNot Nothing Then
+                                                        SendTransactionMap.Item(item.Key).Primary.Dispose()
                                                     End If
 
-                                                    If item.Value.Primary IsNot Nothing Then
-                                                        item.Value.Primary.Dispose()
-                                                    End If
-                                                    item.Value.sTimeoutList(i) = Nothing
-                                                    item.Value.sTimeoutList = Nothing
-                                                    SendTransactionMap.Remove(item.Key)
+                                                    ' 清除所有 Timeout 設定，並移除 Transaction
+                                                    SendTransactionMap.Item(item.Key).sTimeoutList(i) = Nothing
+                                                    SendTransactionMap.Item(item.Key).sTimeoutList = Nothing
+                                                    SendTransactionMap.TryRemove(item.Key, item.Value)
 
-                                                    Exit Sub
                                                 End If
 
                                         End Select
+
                                     Next
+
                                 End If
 
-                            Case enumSecsTransactionState.WaitForDelete
+                            End If
 
-                                If item.Value.Primary IsNot Nothing Then
-                                    item.Value.Primary.Dispose()
-                                End If
-                                If item.Value.Secondary IsNot Nothing Then
-                                    item.Value.Secondary.Dispose()
-                                End If
+                            Exit Select
 
-                                item.Value.sTimeoutList = Nothing
-                                SendTransactionMap.Remove(item.Key)
+                        Case enumSecsTransactionState.SecondaryReceived
 
-                                Exit Sub
+                            ' 當狀態為 SecondaryReceived 時，則解除所有 Timeout 設定，並將狀態改為 WaitForDelete
 
-                        End Select
-                    Next
-                End If
-            End SyncLock
+                            If item.Value.sTimeoutList.Count > 0 Then
+
+                                For i As Integer = 0 To item.Value.sTimeoutList.Count - 1 Step +1
+
+                                    If item.Value.sTimeoutList(i).sTimeoutType = enumTimeout.T3 Then
+
+                                        ' 如果是 Data Message，則解除 T3 Timeout 
+                                        SendTransactionMap.Item(item.Key).sTimeoutList(i) = Nothing
+                                        SendTransactionMap.Item(item.Key).sTimeoutList.RemoveAt(i)
+
+                                    ElseIf item.Value.sTimeoutList(i).sTimeoutType = enumTimeout.T6 Then
+
+                                        ' 如果是 Control Message，則解除 T6 Timeout
+                                        SendTransactionMap.Item(item.Key).sTimeoutList(i) = Nothing
+                                        SendTransactionMap.Item(item.Key).sTimeoutList.RemoveAt(i)
+
+                                    End If
+
+                                Next
+
+                            End If
+
+                            SendTransactionMap.Item(item.Key).State = enumSecsTransactionState.WaitForDelete
+
+                            Exit Select
+
+                        Case enumSecsTransactionState.WaitForDelete
+
+                            ' 清除 Primary Message
+                            If SendTransactionMap.Item(item.Key).Primary IsNot Nothing Then
+                                SendTransactionMap.Item(item.Key).Primary.Dispose()
+                            End If
+                            ' 清除 Secondary Message
+                            If SendTransactionMap.Item(item.Key).Secondary IsNot Nothing Then
+                                SendTransactionMap.Item(item.Key).Secondary.Dispose()
+                            End If
+
+                            ' 清除所有 Timeout 設定，並移除 Transaction
+                            SendTransactionMap.Item(item.Key).sTimeoutList = Nothing
+                            SendTransactionMap.TryRemove(item.Key, item.Value)
+
+                            Exit Select
+
+                    End Select
+                Next
+            End If
+
+            CloneSendTransactionMap = Nothing
 
         End Sub
 
@@ -650,88 +829,171 @@ Namespace SecsDriver
         ' 檢查 ReceiveTransactionMap
         Private Sub CheckReceiveTransactionMap()
 
-            SyncLock ReceiveTransactionMap
+            ' Clone 一份目前的 SendTransactionMap
+            Dim CloneReceiveTransactionMap As Concurrent.ConcurrentDictionary(Of String, SecsTransaction)
+            CloneReceiveTransactionMap = New Concurrent.ConcurrentDictionary(Of String, SecsTransaction)(ReceiveTransactionMap)
 
-                ' 檢查 ReceiveTransactionMap
-                If ReceiveTransactionMap.Count > 0 Then
 
-                    For Each item In ReceiveTransactionMap
+            If CloneReceiveTransactionMap.Count > 0 Then
 
-                        Select Case item.Value.State
+                For Each item In CloneReceiveTransactionMap
 
-                            Case enumSecsTransactionState.PrimaryReceived
+                    Select Case item.Value.State
 
-                                ' 檢查各個 Timeout
-                                If item.Value.sTimeoutList.Count > 0 Then
+                            ' 當狀態為 Create 時，如果有 Primary 則將狀態改為 PrimaryReceived 
+                        Case enumSecsTransactionState.Create
 
+                            If item.Value.Primary IsNot Nothing Then
+
+                                ReceiveTransactionMap.Item(item.Key).State = enumSecsTransactionState.PrimaryReceived
+
+                            End If
+
+                            Exit Select
+
+                        Case enumSecsTransactionState.PrimaryReceived
+
+                            ' 當狀態為 PrimaryReceived 時，如果有 Secondary 時，則送出 Message，並將狀態改為 SecondarySent
+                            ' 否則就設定 T3、T6 Timeout，並檢查是否發生 Timeout
+                            If item.Value.Secondary IsNot Nothing Then
+
+                                If item.Value.Secondary.messageFormat Is Nothing Then
+                                    Exit Select
+                                End If
+
+                                SocketSend(item.Value.Secondary)
+
+                                ' 紀錄 Log
+                                If siniFile.BinaryLog = True Then
+                                    sLog.DoBinaryLog(item.Value.Secondary.ConvertToBinaryLog("SND"))
+                                End If
+
+                                If siniFile.TxLog = True Then
+                                    sLog.DoTxLog(item.Value.Secondary.ConvertToSML("SecondaryOut"))
+                                End If
+
+                                RaiseEvent OnSecondarySent(item.Value)
+
+                                ReceiveTransactionMap.Item(item.Key).State = enumSecsTransactionState.SecondarySent
+
+                            Else
+                                If item.Value.sTimeoutList.Count <= 0 Then
+
+                                    If item.Value.Primary.MessageType = enumMessageType.sDataMessage Then
+
+                                        ' 如果是 Data Message，則設定 T3 Timeout 
+                                        ReceiveTransactionMap.Item(item.Key).SetTimeout(enumTimeout.T3, siniFile)
+                                    Else
+                                        If item.Value.Primary.MessageType <> enumMessageType.sSeparateRequest Then
+
+                                            ' 如果是 Control Message，則設定 T6 Timeout 
+                                            ReceiveTransactionMap.Item(item.Key).SetTimeout(enumTimeout.T6, siniFile)
+                                        End If
+                                    End If
+
+                                Else
+                                    ' 檢查各個 Timeout
                                     For i As Integer = 0 To item.Value.sTimeoutList.Count - 1 Step +1
 
                                         Select Case item.Value.sTimeoutList(i).sTimeoutType
 
                                             Case enumTimeout.T3
 
+                                                ' 發生 T3 Timeout
                                                 If item.Value.sTimeoutList(i).CheckTimeout = True Then
 
-                                                    If item.Value.Primary.MessageName IsNot Nothing Then
-                                                        RaiseEvent OnTimeout("Received : " & item.Value.Primary.MessageName & " T3 Timeout")
-                                                    Else
-                                                        RaiseEvent OnTimeout("Received : Control Message T3 Timeout")
+                                                    RaiseEvent OnTimeout("Received : " & item.Value.Primary.MessageName & " T3 Timeout")
+
+                                                    ' 清除 Primary Message
+                                                    If ReceiveTransactionMap.Item(item.Key).Primary IsNot Nothing Then
+                                                        ReceiveTransactionMap.Item(item.Key).Primary.Dispose()
                                                     End If
 
-                                                    If item.Value.Primary IsNot Nothing Then
-                                                        item.Value.Primary.Dispose()
-                                                    End If
-                                                    item.Value.sTimeoutList(i) = Nothing
-                                                    item.Value.sTimeoutList = Nothing
-                                                    ReceiveTransactionMap.Remove(item.Key)
-
-                                                    Exit Sub
+                                                    ' 清除所有 Timeout 設定，並移除 Transaction
+                                                    ReceiveTransactionMap.Item(item.Key).sTimeoutList(i) = Nothing
+                                                    ReceiveTransactionMap.Item(item.Key).sTimeoutList = Nothing
+                                                    ReceiveTransactionMap.TryRemove(item.Key, item.Value)
 
                                                 End If
 
                                             Case enumTimeout.T6
 
+                                                ' 發生 T6 Timeout
                                                 If item.Value.sTimeoutList(i).CheckTimeout = True Then
 
-                                                    If item.Value.Primary.MessageName IsNot Nothing Then
-                                                        RaiseEvent OnTimeout("Received : " & item.Value.Primary.MessageName & " T6 Timeout")
-                                                    Else
-                                                        RaiseEvent OnTimeout("Received : Control Message T6 Timeout")
+                                                    RaiseEvent OnTimeout("Received : Control Message T6 Timeout")
+
+                                                    ' 清除 Primary Message
+                                                    If ReceiveTransactionMap.Item(item.Key).Primary IsNot Nothing Then
+                                                        ReceiveTransactionMap.Item(item.Key).Primary.Dispose()
                                                     End If
 
-                                                    If item.Value.Primary IsNot Nothing Then
-                                                        item.Value.Primary.Dispose()
-                                                    End If
-                                                    item.Value.sTimeoutList(i) = Nothing
-                                                    item.Value.sTimeoutList = Nothing
-                                                    ReceiveTransactionMap.Remove(item.Key)
-
-                                                    Exit Sub
+                                                    ' 清除所有 Timeout 設定，並移除 Transaction
+                                                    ReceiveTransactionMap.Item(item.Key).sTimeoutList(i) = Nothing
+                                                    ReceiveTransactionMap.Item(item.Key).sTimeoutList = Nothing
+                                                    ReceiveTransactionMap.TryRemove(item.Key, item.Value)
 
                                                 End If
 
                                         End Select
                                     Next
                                 End If
+                            End If
 
-                            Case enumSecsTransactionState.WaitForDelete
+                            Exit Select
 
-                                If item.Value.Primary IsNot Nothing Then
-                                    item.Value.Primary.Dispose()
-                                End If
-                                If item.Value.Secondary IsNot Nothing Then
-                                    item.Value.Secondary.Dispose()
-                                End If
+                        Case enumSecsTransactionState.SecondarySent
 
-                                item.Value.sTimeoutList = Nothing
-                                ReceiveTransactionMap.Remove(item.Key)
+                            ' 當狀態為 SecondarySent 時，則解除所有 Timeout 設定，並將狀態改為 WaitForDelete
+                            If item.Value.sTimeoutList.Count > 0 Then
 
-                                Exit Sub
+                                For i As Integer = 0 To item.Value.sTimeoutList.Count - 1 Step +1
 
-                        End Select
-                    Next
-                End If
-            End SyncLock
+                                    If item.Value.sTimeoutList(i).sTimeoutType = enumTimeout.T3 Then
+
+                                        ' 如果是 Data Message，則解除 T3 Timeout 
+                                        ReceiveTransactionMap.Item(item.Key).sTimeoutList(i) = Nothing
+                                        ReceiveTransactionMap.Item(item.Key).sTimeoutList.RemoveAt(i)
+
+                                    ElseIf item.Value.sTimeoutList(i).sTimeoutType = enumTimeout.T6 Then
+
+                                        ' 如果是 Control Message，則解除 T6 Timeout
+                                        ReceiveTransactionMap.Item(item.Key).sTimeoutList(i) = Nothing
+                                        ReceiveTransactionMap.Item(item.Key).sTimeoutList.RemoveAt(i)
+
+                                    End If
+
+                                Next
+
+                            End If
+
+                            ReceiveTransactionMap.Item(item.Key).State = enumSecsTransactionState.WaitForDelete
+
+                            Exit Select
+
+                        Case enumSecsTransactionState.WaitForDelete
+
+                            ' 清除 Primary Message
+                            If ReceiveTransactionMap.Item(item.Key).Primary IsNot Nothing Then
+                                ReceiveTransactionMap.Item(item.Key).Primary.Dispose()
+                            End If
+
+                            ' 清除 Secondary Message
+                            If ReceiveTransactionMap.Item(item.Key).Secondary IsNot Nothing Then
+                                ReceiveTransactionMap.Item(item.Key).Secondary.Dispose()
+                            End If
+
+                            ' 清除所有 Timeout 設定，並移除 Transaction
+                            ReceiveTransactionMap.Item(item.Key).sTimeoutList = Nothing
+                            ReceiveTransactionMap.TryRemove(item.Key, item.Value)
+
+                            Exit Select
+
+                    End Select
+                Next
+            End If
+
+            CloneReceiveTransactionMap = Nothing
 
         End Sub
 
@@ -741,51 +1003,10 @@ Namespace SecsDriver
             Do
                 SyncLock siniFile
 
+                    ' 重新讀取 IniFile
                     siniFile.ReLoadIniFile()
 
                 End SyncLock
-
-                Application.DoEvents()
-                Thread.Sleep(1000)
-
-            Loop While Not SocketState = enumSecsConnectionState.sSeparate
-        End Sub
-
-
-        ' 檢查 Log.txt 檔的大小
-        Private Sub CheckLogTxt()
-            Do
-                Dim tempDir As New DirectoryInfo(Application.StartupPath & "\SECSLog")
-                Dim tempBinaryLogs As FileInfo() = tempDir.GetFiles("*BinaryLog.txt*")
-                Dim tempTxLogs As FileInfo() = tempDir.GetFiles("TxLog.txt")
-                Dim tempBinaryLog As FileInfo = tempBinaryLogs(0)
-                Dim tempTxLog As FileInfo = tempTxLogs(0)
-
-                If tempBinaryLog IsNot Nothing Then
-
-                    If tempBinaryLog.Length > 500000000 Then
-
-                        FileSystem.RenameFile(Application.StartupPath & "\SECSLog\BinaryLog.txt", "BinaryLog_" & Now.ToString("yyyyMMdd-hh.mm.ss") & ".txt")
-
-                        ' 建立 Log Txt 檔
-                        sBinaryLog = New FileStream(Application.StartupPath & "\SECSLog\BinaryLog.txt", FileMode.OpenOrCreate, FileAccess.ReadWrite)
-                        sBinaryLog.Close()
-
-                    End If
-                End If
-
-                If tempTxLog IsNot Nothing Then
-
-                    If tempTxLog.Length > 500000000 Then
-
-                        FileSystem.RenameFile(Application.StartupPath & "\SECSLog\TxLog.txt", "TxLog_" & Now.ToString("yyyyMMdd-hh.mm.ss") & ".txt")
-
-                        ' 建立 Log Txt 檔
-                        sTxLog = New FileStream(Application.StartupPath & "\SECSLog\TxLog.txt", FileMode.OpenOrCreate, FileAccess.ReadWrite)
-                        sTxLog.Close()
-
-                    End If
-                End If
 
                 Application.DoEvents()
                 Thread.Sleep(1000)
@@ -852,6 +1073,14 @@ Namespace SecsDriver
                 Application.DoEvents()
                 Thread.Sleep(1)
 
+            ElseIf sysMessage = "Set T8 Timeout" Then
+
+                sTimeout = New Timeout(siniFile.T8Timeout, enumTimeout.T8)
+                sTimeoutList.Add(sTimeout)
+
+                Application.DoEvents()
+                Thread.Sleep(1)
+
             End If
 
 		End Sub
@@ -860,9 +1089,25 @@ Namespace SecsDriver
         ' 收到 SECS Message 
         Private Sub onMessage(ByRef message As Byte()) Implements IFMessageListener.onMessage
 
-            Dim tempThread As Thread = New Thread(New ParameterizedThreadStart(AddressOf ParseMessage))
-            tempThread.IsBackground = True
-            tempThread.Start(message)
+            ' 解除 T8 Timeout 的設定
+            SyncLock sTimeoutList
+
+                For i As Integer = 0 To sTimeoutList.Count - 1 Step +1
+
+                    Select Case sTimeoutList(i).sTimeoutType
+
+                        Case enumTimeout.T8
+
+                            sTimeoutList(i) = Nothing
+                            sTimeoutList.RemoveAt(i)
+
+                    End Select
+
+                Next
+
+            End SyncLock
+
+            ReceiveMessageQueue.Enqueue(message)
 
         End Sub
 
@@ -870,317 +1115,436 @@ Namespace SecsDriver
         ' 解析 SecsMessage
         Private Sub ParseMessage(ByVal message As Object)
 
+            Dim sSecsMessage As SecsMessage = Nothing               ' SecsMessage
+            Dim sTransaction As SecsTransaction                     ' Transaction
+
             Try
-                SyncLock thisLock
+                Dim temp() As Byte = CType(message, Byte())
 
-                    Dim temp() As Byte = CType(message, Byte())
+                ' NEW 一個 SECS Message
+                sSecsMessage = New SecsMessage(temp)
 
-                    ' NEW 一個 SECS Message
-                    sSecsMessage = New SecsMessage(temp)
+                ' 檢查 Stream
+                If sSXML.sStreamList.Contains(sSecsMessage.Stream.ToString) = False Then
 
+                    Dim tempSecsMessage As SecsMessage = GetMessageByName("S9F3_UnrecognizedStreamType")
+                    Dim tempByte As Byte() = ConvertToBytes(sSecsMessage)
+                    Dim MessageHeader As Byte() = New Byte(13) {}
+                    Array.Copy(tempByte, MessageHeader, 14)
+                    tempSecsMessage.secsItem.SetItemValue(MessageHeader)
 
-                    ' 檢查 SECS Message 是哪種 Message Type
-                    Select Case sSecsMessage.CheckMessage(sSecsMessage)
+                    SendPrimary(tempSecsMessage)
+
+                    Exit Sub
+                End If
+
+                ' 檢查 Function
+                If sSXML.sFunctionList.Contains(sSecsMessage.Stream.ToString & sSecsMessage.Function.ToString) = False Then
+
+                    Dim tempSecsMessage As SecsMessage = GetMessageByName("S9F5_UnrecognizedFunctionType")
+                    Dim tempByte As Byte() = ConvertToBytes(sSecsMessage)
+                    Dim MessageHeader As Byte() = New Byte(13) {}
+                    Array.Copy(tempByte, MessageHeader, 14)
+                    tempSecsMessage.secsItem.SetItemValue(MessageHeader)
+
+                    SendPrimary(tempSecsMessage)
+
+                    Exit Sub
+                End If
+
+                ' 檢查 SECS Message 是哪種 Message Type
+                Select Case sSecsMessage.CheckMessage(sSecsMessage)
 
 
                     ' 收到的 Message 是 Select Request
-                        Case enumMessageType.sSelectRequest
+                    Case enumMessageType.sSelectRequest
 
-                            ' NEW 一個 SecsTransaction
-                            sTransaction = New SecsTransaction()
-                            sTransaction.Primary = sSecsMessage
-                            sTransaction.State = enumSecsTransactionState.PrimaryReceived
+                        ' 紀錄 Log
+                        If siniFile.BinaryLog = True Then
+                            sLog.DoBinaryLog(sSecsMessage.ConvertToBinaryLog("RCV"))
+                        End If
 
-                            ' ReceiveTransactionMap 新增此 Transaction
-                            SyncLock ReceiveTransactionMap
-                                ReceiveTransactionMap.Add(sSecsMessage.messageFormat.SystemBytes, sTransaction)
-                            End SyncLock
+                        If siniFile.TxLog = True Then
+                            sLog.DoTxLog(sSecsMessage.ConvertToSML("PrimaryIn"))
+                        End If
 
-                            RaiseEvent OnPrimaryReceived(sTransaction)
+                        ' NEW 一個 SecsTransaction
+                        sTransaction = New SecsTransaction()
+                        sTransaction.Primary = sSecsMessage
+                        RaiseEvent OnPrimaryReceived(sTransaction)
 
-                            ' 紀錄 Log
-                            DoLog(sTransaction.Primary.ConvertToBinaryLog("RCV"), sTransaction.Primary.ConvertToSML("PrimaryIn"))
+                        Dim SystemByteString As String = Nothing
+
+                        For i As Integer = 0 To sSecsMessage.messageFormat.SystemBytes.Length - 1
+                            SystemByteString = SystemByteString & sSecsMessage.messageFormat.SystemBytes(i)
+                        Next
+
+                        ReceiveTransactionMap.TryAdd(SystemByteString, sTransaction)
+
+                        ' NEW 一個 Select Response
+                        Dim tempSecsMessage As SecsMessage = New SecsMessage()
+                        tempSecsMessage.messageFormat.Length = BitConverter.GetBytes(10)                    ' Length
+                        Array.Reverse(tempSecsMessage.messageFormat.Length)
+                        tempSecsMessage.messageFormat.DeviceID(0) = Convert.ToByte(&HFF)                    ' DeviceID
+                        tempSecsMessage.messageFormat.DeviceID(1) = Convert.ToByte(&HFF)
+                        tempSecsMessage.messageFormat.HeaderByte(0) = Convert.ToByte(&H0)                   ' HeaderByte
+                        tempSecsMessage.messageFormat.HeaderByte(1) = Convert.ToByte(&H0)
+                        tempSecsMessage.messageFormat.PType = Convert.ToByte(&H0)                           ' PType
+                        tempSecsMessage.messageFormat.SType = Convert.ToByte(&H2)                           ' SType
+                        tempSecsMessage.messageFormat.SystemBytes = sSecsMessage.messageFormat.SystemBytes  ' SystemBytes
+                        tempSecsMessage.secsItem = Nothing
+                        sTransaction.Secondary = tempSecsMessage
 
 
-                            ' 設定 T6 Timeout
-                            sTransaction.SetTimeout(enumTimeout.T6, siniFile)
+                        ' 設定 SocketState 為 Selected
+                        SocketState = enumSecsConnectionState.sSelected
+                        RaiseEvent OnSecsConnectStateChange("Selected")
 
-                            ' NEW 一個 Select Response
-                            Dim tempSecsMessage As SecsMessage = New SecsMessage()
-                            tempSecsMessage.messageFormat.Length = BitConverter.GetBytes(10)                    ' Length
-                            Array.Reverse(tempSecsMessage.messageFormat.Length)
-                            tempSecsMessage.messageFormat.DeviceID(0) = Convert.ToByte(&HFF)                    ' DeviceID
-                            tempSecsMessage.messageFormat.DeviceID(1) = Convert.ToByte(&HFF)
-                            tempSecsMessage.messageFormat.HeaderByte(0) = Convert.ToByte(&H0)                   ' HeaderByte
-                            tempSecsMessage.messageFormat.HeaderByte(1) = Convert.ToByte(&H0)
-                            tempSecsMessage.messageFormat.PType = Convert.ToByte(&H0)                           ' PType
-                            tempSecsMessage.messageFormat.SType = Convert.ToByte(&H2)                           ' SType
-                            tempSecsMessage.messageFormat.SystemBytes = sSecsMessage.messageFormat.SystemBytes  ' SystemBytes
-                            tempSecsMessage.secsItem = Nothing
-                            sTransaction.Secondary = tempSecsMessage
-
-                            SendSecondary(sTransaction)
-
-                            ' 設定 SocketState 為 Selected
-                            SocketState = enumSecsConnectionState.sSelected
-                            RaiseEvent OnSecsConnectStateChange("Selected")
-
-                            Exit Select
+                        Exit Select
 
                     ' 收到的 Message 是 Select Response
-                        Case enumMessageType.sSelectResponse
+                    Case enumMessageType.sSelectResponse
 
-                            SyncLock SendTransactionMap
+                        ' 紀錄 Log
+                        If siniFile.BinaryLog = True Then
+                            sLog.DoBinaryLog(sSecsMessage.ConvertToBinaryLog("RCV"))
+                        End If
 
-                                ' 從 SendTransactionMap 中，尋找 Transaction    
-                                If SendTransactionMap.Count > 0 Then
+                        If siniFile.TxLog = True Then
+                            sLog.DoTxLog(sSecsMessage.ConvertToSML("SecondaryIn"))
+                        End If
 
-                                    For Each item In SendTransactionMap
 
-                                        If item.Key.ToString = sSecsMessage.messageFormat.SystemBytes.ToString Then
+                        ' 從 SendTransactionMap 中，尋找 Transaction 
+                        If SendTransactionMap.Count > 0 Then
 
-                                            ' 解除 T6 Timeout
-                                            If item.Value.sTimeoutList.Count > 0 Then
+                            Dim SystemByteString As String = Nothing
 
-                                                For i As Integer = 0 To item.Value.sTimeoutList.Count - 1 Step +1
-                                                    If item.Value.sTimeoutList(i).sTimeoutType = enumTimeout.T6 Then
+                            For i As Integer = 0 To sSecsMessage.messageFormat.SystemBytes.Length - 1
+                                SystemByteString = SystemByteString & sSecsMessage.messageFormat.SystemBytes(i)
+                            Next
 
-                                                        item.Value.sTimeoutList(i) = Nothing
-                                                        item.Value.sTimeoutList.RemoveAt(i)
-                                                        Exit For
+                            Dim tempTransaction As SecsTransaction = SendTransactionMap.Item(SystemByteString)
 
-                                                    End If
-                                                Next
+                            If tempTransaction IsNot Nothing Then
 
-                                            End If
+                                tempTransaction.Secondary = sSecsMessage
+                                tempTransaction.sTimeoutList.Clear()
+                                RaiseEvent OnSecondaryReceived(tempTransaction)
 
-                                            item.Value.Secondary = sSecsMessage
-                                            item.Value.State = enumSecsTransactionState.SecondaryReceived
-                                            item.Value.State = enumSecsTransactionState.WaitForDelete
+                                ' 設定 SocketState 為 Selected
+                                SocketState = enumSecsConnectionState.sSelected
+                                RaiseEvent OnSecsConnectStateChange("Selected")
+                            Else
+                                RaiseEvent OnMessageError(sSecsMessage, "Transaction Not Found")
+                            End If
 
-                                            RaiseEvent OnSecondaryReceived(item.Value)
+                        Else
+                            RaiseEvent OnMessageError(sSecsMessage, "Transaction Not Found")
+                        End If
 
-                                            ' 紀錄 Log
-                                            DoLog(item.Value.Secondary.ConvertToBinaryLog("RCV"), item.Value.Secondary.ConvertToSML("SecondaryIn"))
-
-                                            ' 設定 SocketState 為 Selected
-                                            SocketState = enumSecsConnectionState.sSelected
-                                            RaiseEvent OnSecsConnectStateChange("Selected")
-
-                                            Exit Select
-
-                                        End If
-
-                                    Next
-
-                                    RaiseEvent OnMessageError(sSecsMessage, "Transaction Not Found")
-                                    Exit Select
-
-                                Else
-                                    RaiseEvent OnMessageError(sSecsMessage, "Transaction Not Found")
-                                    Exit Select
-                                End If
-
-                            End SyncLock
-
+                        Exit Select
 
                     ' 收到的 Message 是 Linktest Request
-                        Case enumMessageType.sLinktestRequest
+                    Case enumMessageType.sLinktestRequest
 
-                            ' NEW 一個 SecsTransaction
-                            sTransaction = New SecsTransaction()
-                            sTransaction.Primary = sSecsMessage
-                            sTransaction.State = enumSecsTransactionState.PrimaryReceived
+                        ' 紀錄 Log
+                        If siniFile.BinaryLog = True Then
+                            sLog.DoBinaryLog(sSecsMessage.ConvertToBinaryLog("RCV"))
+                        End If
 
-                            SyncLock ReceiveTransactionMap
-                                ReceiveTransactionMap.Add(sSecsMessage.messageFormat.SystemBytes, sTransaction)
-                            End SyncLock
+                        If siniFile.TxLog = True Then
+                            sLog.DoTxLog(sSecsMessage.ConvertToSML("PrimaryIn"))
+                        End If
 
-                            RaiseEvent OnPrimaryReceived(sTransaction)
+                        ' NEW 一個 SecsTransaction
+                        sTransaction = New SecsTransaction()
+                        sTransaction.Primary = sSecsMessage
+                        RaiseEvent OnPrimaryReceived(sTransaction)
 
-                            ' 紀錄 Log
-                            DoLog(sTransaction.Primary.ConvertToBinaryLog("RCV"), sTransaction.Primary.ConvertToSML("PrimaryIn"))
+                        Dim SystemByteString As String = Nothing
 
+                        For i As Integer = 0 To sSecsMessage.messageFormat.SystemBytes.Length - 1
+                            SystemByteString = SystemByteString & sSecsMessage.messageFormat.SystemBytes(i)
+                        Next
 
-                            ' 設定 T6 Timeout
-                            sTransaction.SetTimeout(enumTimeout.T6, siniFile)
+                        ReceiveTransactionMap.TryAdd(SystemByteString, sTransaction)
 
-                            ' NEW 一個 Linktest Response
-                            Dim tempSecsMessage As SecsMessage = New SecsMessage()
-                            tempSecsMessage.messageFormat.Length = BitConverter.GetBytes(10)                    ' Length
-                            Array.Reverse(tempSecsMessage.messageFormat.Length)
-                            tempSecsMessage.messageFormat.DeviceID(0) = Convert.ToByte(&HFF)                    ' DeviceID
-                            tempSecsMessage.messageFormat.DeviceID(1) = Convert.ToByte(&HFF)
-                            tempSecsMessage.messageFormat.HeaderByte(0) = Convert.ToByte(&H0)                   ' HeaderByte
-                            tempSecsMessage.messageFormat.HeaderByte(1) = Convert.ToByte(&H0)
-                            tempSecsMessage.messageFormat.PType = Convert.ToByte(&H0)                           ' PType
-                            tempSecsMessage.messageFormat.SType = Convert.ToByte(&H6)                           ' SType
-                            tempSecsMessage.messageFormat.SystemBytes = sSecsMessage.messageFormat.SystemBytes  ' SystemBytes
-                            tempSecsMessage.secsItem = Nothing
-                            sTransaction.Secondary = tempSecsMessage
+                        ' NEW 一個 Linktest Response
+                        Dim tempSecsMessage As SecsMessage = New SecsMessage()
+                        tempSecsMessage.messageFormat.Length = BitConverter.GetBytes(10)                    ' Length
+                        Array.Reverse(tempSecsMessage.messageFormat.Length)
+                        tempSecsMessage.messageFormat.DeviceID(0) = Convert.ToByte(&HFF)                    ' DeviceID
+                        tempSecsMessage.messageFormat.DeviceID(1) = Convert.ToByte(&HFF)
+                        tempSecsMessage.messageFormat.HeaderByte(0) = Convert.ToByte(&H0)                   ' HeaderByte
+                        tempSecsMessage.messageFormat.HeaderByte(1) = Convert.ToByte(&H0)
+                        tempSecsMessage.messageFormat.PType = Convert.ToByte(&H0)                           ' PType
+                        tempSecsMessage.messageFormat.SType = Convert.ToByte(&H6)                           ' SType
+                        tempSecsMessage.messageFormat.SystemBytes = sSecsMessage.messageFormat.SystemBytes  ' SystemBytes
+                        tempSecsMessage.secsItem = Nothing
+                        sTransaction.Secondary = tempSecsMessage
 
-                            SendSecondary(sTransaction)
-
-                            Exit Select
+                        Exit Select
 
                     ' 收到的 Message 是 Linktest Reqsponse
-                        Case enumMessageType.sLinktestResponse
+                    Case enumMessageType.sLinktestResponse
 
-                            SyncLock SendTransactionMap
+                        ' 紀錄 Log
+                        If siniFile.BinaryLog = True Then
+                            sLog.DoBinaryLog(sSecsMessage.ConvertToBinaryLog("RCV"))
+                        End If
 
-                                ' 從 SendTransactionMap 中，尋找 Transaction 
-                                If SendTransactionMap.Count > 0 Then
+                        If siniFile.TxLog = True Then
+                            sLog.DoTxLog(sSecsMessage.ConvertToSML("SecondaryIn"))
+                        End If
 
-                                    For Each item In SendTransactionMap
 
-                                        If item.Key.ToString = sSecsMessage.messageFormat.SystemBytes.ToString Then
+                        ' 從 SendTransactionMap 中，尋找 Transaction 
+                        If SendTransactionMap.Count > 0 Then
 
-                                            ' 解除 T6 Timeout
-                                            If item.Value.sTimeoutList.Count > 0 Then
+                            Dim SystemByteString As String = Nothing
 
-                                                For i As Integer = 0 To item.Value.sTimeoutList.Count - 1
-                                                    If item.Value.sTimeoutList(i).sTimeoutType = enumTimeout.T6 Then
+                            For i As Integer = 0 To sSecsMessage.messageFormat.SystemBytes.Length - 1
+                                SystemByteString = SystemByteString & sSecsMessage.messageFormat.SystemBytes(i)
+                            Next
 
-                                                        item.Value.sTimeoutList(i) = Nothing
-                                                        item.Value.sTimeoutList.RemoveAt(i)
-                                                        Exit For
+                            Dim tempTransaction As SecsTransaction = SendTransactionMap.Item(SystemByteString)
 
-                                                    End If
-                                                Next
+                            If tempTransaction IsNot Nothing Then
 
-                                            End If
+                                tempTransaction.Secondary = sSecsMessage
+                                tempTransaction.sTimeoutList.Clear()
+                                RaiseEvent OnSecondaryReceived(tempTransaction)
 
-                                            item.Value.Secondary = sSecsMessage
-                                            item.Value.State = enumSecsTransactionState.SecondaryReceived
-                                            item.Value.State = enumSecsTransactionState.WaitForDelete
+                            Else
+                                RaiseEvent OnMessageError(sSecsMessage, "Transaction Not Found")
+                            End If
 
-                                            RaiseEvent OnSecondaryReceived(item.Value)
+                        Else
+                            RaiseEvent OnMessageError(sSecsMessage, "Transaction Not Found")
+                        End If
 
-                                            ' 紀錄 Log
-                                            DoLog(item.Value.Secondary.ConvertToBinaryLog("RCV"), item.Value.Secondary.ConvertToSML("SecondaryIn"))
-
-                                            Exit Select
-
-                                        End If
-                                    Next
-
-                                    RaiseEvent OnMessageError(sSecsMessage, "Transaction Not Found")
-                                    Exit Select
-                                Else
-                                    RaiseEvent OnMessageError(sSecsMessage, "Transaction Not Found")
-                                    Exit Select
-                                End If
-
-                            End SyncLock
-
+                        Exit Select
 
                     ' 收到的 Message 是 Data Message
-                        Case enumMessageType.sDataMessage
+                    Case enumMessageType.sDataMessage
 
-                            If (sSecsMessage.Function Mod 2) = 1 Then
+                        If (sSecsMessage.Function Mod 2) = 1 Then
 
-                                ' --------------------------------------- 收到 Primary Message --------------------------------------------
-
-                                ' 從 SXML 中找出符合 SecsMessage 格式的 Message
-                                If (sSXML.FindMessageByFormat(sSecsMessage)) = False Then
-
-                                    ' 在 SXML 中沒有找到符合格式的 SecsMessage
-                                    RaiseEvent OnMessageInfo(sSecsMessage, "Message Not Found")
-
-                                Else
-
-                                    ' 在 SXML 中找到符合格式的 SecsMessage
-
-                                    ' NEW 一個 SecsTransaction
-                                    sTransaction = New SecsTransaction()
-                                    sTransaction.Primary = sSecsMessage
-                                    sTransaction.State = enumSecsTransactionState.PrimaryReceived
-
-                                    SyncLock ReceiveTransactionMap
-                                        ReceiveTransactionMap.Add(sSecsMessage.messageFormat.SystemBytes, sTransaction)
-                                    End SyncLock
-
-                                    RaiseEvent OnPrimaryReceived(sTransaction)
-
-                                    ' 紀錄 Log
-                                    DoLog(sTransaction.Primary.ConvertToBinaryLog("RCV"), sTransaction.Primary.ConvertToSML("PrimaryIn"))
+                            ' --------------------------------------- 收到 Primary Message --------------------------------------------
 
 
-                                    ' 設定 T3 Timeout
-                                    sTransaction.SetTimeout(enumTimeout.T3, siniFile)
+                            ' 紀錄 Log
+                            If siniFile.BinaryLog = True Then
+                                sLog.DoBinaryLog(sSecsMessage.ConvertToBinaryLog("RCV"))
+                            End If
 
-                                    ' 是否執行 AutoReply
-                                    DoAutoReply(sTransaction)
+                            If siniFile.TxLog = True Then
+                                sLog.DoTxLog(sSecsMessage.ConvertToSML("PrimaryIn"))
+                            End If
 
-                                End If
 
-                                Exit Select
+                            ' 從 SXML 中找出符合 SecsMessage 格式的 Message
+                            If (sSXML.FindMessageByFormat(sSecsMessage)) = False Then
+
+                                ' 在 SXML 中沒有找到符合格式的 SecsMessage
+
+
+                                RaiseEvent OnMessageInfo(sSecsMessage, "Message Not Found")
+
+                                ' 回覆 S9F7 訊息
+                                Dim tempSecsMessage As SecsMessage = GetMessageByName("S9F7_IllegalData")
+                                Dim tempByte As Byte() = ConvertToBytes(sSecsMessage)
+                                Dim MessageHeader As Byte() = New Byte(13) {}
+                                Array.Copy(tempByte, MessageHeader, 14)
+                                tempSecsMessage.secsItem.SetItemValue(MessageHeader)
+                                SendPrimary(tempSecsMessage)
 
                             Else
 
-                                ' --------------------------------------- 收到 Secondary Message -----------------------------------------------
+                                ' 在 SXML 中找到符合格式的 SecsMessage                          
 
-                                SyncLock SendTransactionMap
 
-                                    ' 從 SendTransactionMap 中，尋找 Transaction
-                                    If SendTransactionMap.Count > 0 Then
+                                ' NEW 一個 SecsTransaction
+                                sTransaction = New SecsTransaction()
+                                sTransaction.Primary = sSecsMessage
+                                RaiseEvent OnPrimaryReceived(sTransaction)
 
-                                        For Each item In SendTransactionMap
+                                ' 檢查是否為不需要回覆的訊息
+                                If sSXML.sDontNeedToReplyList.Contains(sSecsMessage.MessageName) = True Then
 
-                                            If item.Key.ToString = sSecsMessage.messageFormat.SystemBytes.ToString Then
+                                    ' 透過 System Bytes 找出 Transaction
+                                    Dim SystemByteString As String = Nothing
 
-                                                ' 從 SXML 中找出符合 SecsMessage 格式的 Message
-                                                If (sSXML.FindMessageByFormat(sSecsMessage)) = False Then
+                                    If sSecsMessage.secsItem.ItemValue IsNot Nothing Then
 
-                                                    RaiseEvent OnMessageInfo(sSecsMessage, "Message Not Found")
-                                                Else
+                                        For i As Integer = 11 To sSecsMessage.secsItem.ItemValue.Count
 
-                                                    ' 解除 T3 Timeout
-                                                    If item.Value.sTimeoutList.Count > 0 Then
-
-                                                        For i As Integer = 0 To item.Value.sTimeoutList.Count - 1
-                                                            If item.Value.sTimeoutList(i).sTimeoutType = enumTimeout.T3 Then
-
-                                                                item.Value.sTimeoutList(i) = Nothing
-                                                                item.Value.sTimeoutList.RemoveAt(i)
-                                                                Exit For
-
-                                                            End If
-                                                        Next
-
-                                                    End If
-
-                                                    item.Value.Secondary = sSecsMessage
-                                                    item.Value.State = enumSecsTransactionState.SecondaryReceived
-                                                    item.Value.State = enumSecsTransactionState.WaitForDelete
-
-                                                    RaiseEvent OnSecondaryReceived(item.Value)
-
-                                                    ' 紀錄 Log
-                                                    DoLog(item.Value.Secondary.ConvertToBinaryLog("RCV"), item.Value.Secondary.ConvertToSML("SecondaryIn"))
-
-                                                End If
-
-                                                Exit Select
-
-                                            End If
+                                            Dim tempByte As Byte() = sSecsMessage.secsItem.ItemValue(i)
+                                            SystemByteString = SystemByteString & tempByte(0)
 
                                         Next
 
-                                        RaiseEvent OnMessageError(sSecsMessage, "Transaction Not Found")
-                                        Exit Select
-                                    Else
-                                        RaiseEvent OnMessageError(sSecsMessage, "Transaction Not Found")
-                                        Exit Select
                                     End If
 
-                                End SyncLock
+                                    Try
+                                        Dim tempTransaction As SecsTransaction = SendTransactionMap.Item(SystemByteString)
+                                        tempTransaction.Secondary = sSecsMessage
+
+                                    Catch ex As Exception
+
+                                        ' Do Nothing
+                                    End Try
+
+
+                                Else
+
+                                    Dim SystemByteString As String = Nothing
+
+                                    For i As Integer = 0 To sSecsMessage.messageFormat.SystemBytes.Length - 1
+                                        SystemByteString = SystemByteString & sSecsMessage.messageFormat.SystemBytes(i)
+                                    Next
+
+                                    ReceiveTransactionMap.TryAdd(SystemByteString, sTransaction)
+
+                                    ' 是否執行 AutoReply
+                                    DoAutoReply(sTransaction)
+                                End If
 
                             End If
 
-                    End Select
+                            Exit Select
 
-                End SyncLock
+                        Else
+
+                            ' --------------------------------------- 收到 Secondary Message -----------------------------------------------
+
+
+                            ' 紀錄 Log
+                            If siniFile.BinaryLog = True Then
+                                sLog.DoBinaryLog(sSecsMessage.ConvertToBinaryLog("RCV"))
+                            End If
+
+                            If siniFile.TxLog = True Then
+                                sLog.DoTxLog(sSecsMessage.ConvertToSML("SecondaryIn"))
+                            End If
+
+
+                            ' 檢查 Device ID
+                            If siniFile.Role = enumRole.sHost Then
+
+                                ' Device ID 不同時
+                                If sSecsMessage.messageFormat.DeviceID(0) <> siniFile.DeviceID Then
+
+                                    ' 透過 System Bytes 找出 Transaction
+                                    Dim SystemByteString As String = Nothing
+
+                                    For i As Integer = 0 To sSecsMessage.messageFormat.SystemBytes.Length - 1
+                                        SystemByteString = SystemByteString & sSecsMessage.messageFormat.SystemBytes(i)
+                                    Next
+
+                                    Dim tempTransaction As SecsTransaction = SendTransactionMap.Item(SystemByteString)
+
+                                    If tempTransaction IsNot Nothing Then
+                                        tempTransaction.Secondary = sSecsMessage
+                                    Else
+                                        RaiseEvent OnMessageError(sSecsMessage, "Transaction Not Found")
+                                    End If
+
+                                    Dim tempSecsMessage As SecsMessage = GetMessageByName("S9F1_UnrecognizedDeviceID")
+                                    Dim tempByte As Byte() = ConvertToBytes(sSecsMessage)
+                                    Array.Copy(tempByte, tempByte, 14)
+                                    tempSecsMessage.secsItem.SetItemValue(tempByte)
+
+                                    SendPrimary(tempSecsMessage)
+
+                                    Exit Sub
+
+                                End If
+
+                            ElseIf siniFile.Role = enumRole.sEquipment Then
+
+                                ' Device ID 不同時
+                                If sSecsMessage.messageFormat.DeviceID(1) <> siniFile.DeviceID Then
+
+                                    ' 透過 System Bytes 找出 Transaction
+                                    Dim SystemByteString As String = Nothing
+
+                                    For i As Integer = 0 To sSecsMessage.messageFormat.SystemBytes.Length - 1
+                                        SystemByteString = SystemByteString & sSecsMessage.messageFormat.SystemBytes(i)
+                                    Next
+
+                                    Dim tempTransaction As SecsTransaction = SendTransactionMap.Item(SystemByteString)
+
+                                    If tempTransaction IsNot Nothing Then
+                                        tempTransaction.Secondary = sSecsMessage
+                                    Else
+                                        RaiseEvent OnMessageError(sSecsMessage, "Transaction Not Found")
+                                    End If
+
+                                    Dim tempSecsMessage As SecsMessage = GetMessageByName("S9F1_UnrecognizedDeviceID")
+                                    Dim tempByte As Byte() = ConvertToBytes(sSecsMessage)
+                                    Array.Copy(tempByte, tempByte, 14)
+                                    tempSecsMessage.secsItem.SetItemValue(tempByte)
+
+                                    SendPrimary(tempSecsMessage)
+
+                                    Exit Sub
+
+                                End If
+
+                            End If
+
+                            ' 從 SendTransactionMap 中，尋找 Transaction
+                            If SendTransactionMap.Count > 0 Then
+
+                                Dim SystemByteString As String = Nothing
+
+                                For i As Integer = 0 To sSecsMessage.messageFormat.SystemBytes.Length - 1
+                                    SystemByteString = SystemByteString & sSecsMessage.messageFormat.SystemBytes(i)
+                                Next
+
+                                Dim tempTransaction As SecsTransaction = SendTransactionMap.Item(SystemByteString)
+
+                                If tempTransaction IsNot Nothing Then
+
+                                    ' 從 SXML 中找出符合 SecsMessage 格式的 Message                              
+                                    If (sSXML.FindMessageByFormat(sSecsMessage)) = False Then
+
+                                        ' 在 SXML 中沒有找到符合格式的 SecsMessage
+
+
+                                        RaiseEvent OnMessageInfo(sSecsMessage, "Message Not Found")
+
+                                        ' 回覆 S9F7 訊息
+                                        Dim tempSecsMessage As SecsMessage = GetMessageByName("S9F7_IllegalData")
+                                        Dim tempByte As Byte() = ConvertToBytes(sSecsMessage)
+                                        Array.Copy(tempByte, tempByte, 14)
+                                        tempSecsMessage.secsItem.SetItemValue(tempByte)
+
+                                        SendPrimary(tempSecsMessage)
+
+                                    Else
+                                        ' 在 SXML 中找到符合格式的 SecsMessage  
+
+                                        tempTransaction.Secondary = sSecsMessage
+                                        RaiseEvent OnSecondaryReceived(tempTransaction)
+
+                                    End If
+
+                                Else
+                                    RaiseEvent OnMessageError(sSecsMessage, "Transaction Not Found")
+                                End If
+
+                            Else
+                                RaiseEvent OnMessageError(sSecsMessage, "Transaction Not Found")
+                            End If
+
+                            Exit Select
+
+                        End If
+
+                End Select
 
             Catch ex As Exception
 
@@ -1198,9 +1562,10 @@ Namespace SecsDriver
 
                     If GetMessageByName(aTransaction.Primary.AutoReply) IsNot Nothing Then
 
-                        aTransaction.Secondary = GetMessageByName(aTransaction.Primary.AutoReply)
-                        aTransaction.Secondary.messageFormat.SystemBytes = aTransaction.Primary.messageFormat.SystemBytes
-                        SendSecondary(aTransaction)
+                        Dim tempTransaction As SecsTransaction = New SecsTransaction
+                        tempTransaction = aTransaction
+                        tempTransaction.Secondary = GetMessageByName(aTransaction.Primary.AutoReply)
+                        SendSecondary(tempTransaction)
 
                     End If
 
@@ -1210,11 +1575,11 @@ Namespace SecsDriver
                 RaiseEvent OnMessageError(aTransaction.Primary, "AutoReply Fail")
             End Try
 
-		End Sub
+        End Sub
 
 
-		' 計算出 System Bytes
-		Private Function getSystemByte() As UInteger
+        ' 計算出 System Bytes
+        Private Function getSystemByte() As UInteger
 
 			systemBytesCount = systemBytesCount + 1
 
@@ -1226,45 +1591,287 @@ Namespace SecsDriver
 		End Function
 
 
-        ' 紀錄 Log
-        Private Sub DoLog(ByRef aBinaryLogString As String, ByRef aTxLogString As String)
+        ' 將 SecsMessage 轉換成 Bytes
+        Private Function ConvertToBytes(ByRef aSecsMessage As SecsMessage) As Byte()
 
-            ' 紀錄 Binary Log
+            ' 將 SecsItem 轉換成 Bytes
+            Dim ItemTempList As ArrayList = New ArrayList
+
+            If aSecsMessage.secsItem IsNot Nothing Then
+
+                ItemConvertToBytes(aSecsMessage.secsItem, ItemTempList)
+            End If
+
+            aSecsMessage.messageFormat.Length = BitConverter.GetBytes(ItemTempList.Count + 10)
+            Array.Reverse(aSecsMessage.messageFormat.Length)
+
+            ' 將 SecsMessage 轉換成 Bytes
+            Dim MessageTempList As ArrayList = New ArrayList
+
+            ' Length
+            MessageTempList.Add(aSecsMessage.messageFormat.Length(0))
+            MessageTempList.Add(aSecsMessage.messageFormat.Length(1))
+            MessageTempList.Add(aSecsMessage.messageFormat.Length(2))
+            MessageTempList.Add(aSecsMessage.messageFormat.Length(3))
+
+            ' DeviceID
+            If aSecsMessage.messageFormat.RBit = True Then
+                MessageTempList.Add((aSecsMessage.messageFormat.DeviceID(0) Or &H80))
+            Else
+                MessageTempList.Add(aSecsMessage.messageFormat.DeviceID(0))
+            End If
+            MessageTempList.Add(aSecsMessage.messageFormat.DeviceID(1))
+
+            ' Header Bytes
+            If aSecsMessage.messageFormat.WBit = True Then
+                MessageTempList.Add((aSecsMessage.messageFormat.HeaderByte(0) Or &H80))
+            Else
+                MessageTempList.Add(aSecsMessage.messageFormat.HeaderByte(0))
+            End If
+            MessageTempList.Add(aSecsMessage.messageFormat.HeaderByte(1))
+
+            ' PType
+            MessageTempList.Add(aSecsMessage.messageFormat.PType)
+
+            ' SType
+            MessageTempList.Add(aSecsMessage.messageFormat.SType)
+
+            ' System Bytes
+            MessageTempList.Add(aSecsMessage.messageFormat.SystemBytes(0))
+            MessageTempList.Add(aSecsMessage.messageFormat.SystemBytes(1))
+            MessageTempList.Add(aSecsMessage.messageFormat.SystemBytes(2))
+            MessageTempList.Add(aSecsMessage.messageFormat.SystemBytes(3))
+
+            ' 假如有 SecsItem
+            If ItemTempList IsNot Nothing Then
+
+                ' 將 SecsItem 的 Bytes加進要送出的 Bytes
+                For i As Int64 = 0 To ItemTempList.Count - 1 Step +1
+
+                    MessageTempList.Add(ItemTempList(i))
+                Next
+
+            End If
+
+            ' 產生要送出的 SecsMessage 的 Bytes
+            Dim tempBytes(MessageTempList.Count - 1) As Byte
+
+            For i As Int64 = 0 To MessageTempList.Count - 1 Step +1
+
+                tempBytes(i) = MessageTempList(i)
+            Next
+
+            Return tempBytes
+
+        End Function
+
+
+        ' 將 SecsItem 轉換成 Bytes
+        Private Sub ItemConvertToBytes(ByRef item As SecsItem, ByRef temp As ArrayList)
+
+            If item.ItemType = "L" Then
+
+                ' -------------- 假如 Item = List -----------------------
+
+                Dim tempByte() As Byte
+                tempByte = item.ItemConvertToBytes()
+
+                For i As Int64 = 0 To tempByte.Length - 1
+                    temp.Add(tempByte(i))
+                Next
+
+                For i As Integer = 0 To item.ItemList.Count - 1 Step +1
+                    ItemConvertToBytes(item.ItemList(i), temp)
+                Next
+
+            Else
+
+                ' -------------- 假如 Item != List -----------------------
+
+                Dim tempByte() As Byte
+                tempByte = item.ItemConvertToBytes()
+
+                For i As Int64 = 0 To tempByte.Length - 1
+                    temp.Add(tempByte(i))
+                Next
+            End If
+
+        End Sub
+
+
+        ' 將 Message 透過 Socket 送出
+        Private Sub SocketSend(ByRef aSecsMessage As SecsMessage)
+
+            ' 如果是 Active，則使用 Client
+            ' 如果是 Passive，則使用 Server
+            If Me.siniFile.Entity = enumSecsEntity.sActive Then
+                sClient.send(ConvertToBytes(aSecsMessage))
+            Else
+                sServer.send(ConvertToBytes(aSecsMessage))
+            End If
+
+        End Sub
+
+
+
+        ' ----------------例外---------------------------------------
+
+        Public Sub SendS9F1Message(ByRef aSecsMessage As SecsMessage)
+
+            Dim sTransaction As SecsTransaction
+
             Try
-                If siniFile.BinaryLog = True Then
+                ' 檢查 System Bytes
+                aSecsMessage.messageFormat.SystemBytes = BitConverter.GetBytes(getSystemByte())
+                Array.Reverse(aSecsMessage.messageFormat.SystemBytes)
 
-                    Dim tempSW As StreamWriter = File.AppendText(Application.StartupPath & "\SECSLog\BinaryLog.txt")
 
-                    tempSW.WriteLine(aBinaryLogString)
-                    tempSW.Flush()
-                    tempSW.Close()
-                    tempSW.Dispose()
+                ' 檢查 Messae 是否為不需回覆的 Message
+                If sSXML.sDontNeedToReplyList.Contains(aSecsMessage.MessageName) = True Then
+
+                    ' 紀錄 Log
+                    If siniFile.BinaryLog = True Then
+                        sLog.DoBinaryLog(aSecsMessage.ConvertToBinaryLog("SND"))
+                    End If
+
+                    If siniFile.TxLog = True Then
+                        sLog.DoTxLog(aSecsMessage.ConvertToSML("PrimaryOut"))
+                    End If
+
+                    ' NEW 一個 SecsTransaction
+                    sTransaction = New SecsTransaction()
+                    sTransaction.Primary = aSecsMessage
+                    RaiseEvent OnPrimarySent(sTransaction)
+
+                    SocketSend(aSecsMessage)
+
+                Else
+                    ' New 一個 SecsTransaction，並把 Primary 放在裡面
+                    sTransaction = New SecsTransaction()
+                    sTransaction.Primary = aSecsMessage
+
+                    ' SendTransactionMap 新增此 Transaction
+                    Dim SystemByteString As String = Nothing
+
+                    For i As Integer = 0 To aSecsMessage.messageFormat.SystemBytes.Length - 1
+                        SystemByteString = SystemByteString & aSecsMessage.messageFormat.SystemBytes(i)
+                    Next
+
+                    SendTransactionMap.TryAdd(SystemByteString, sTransaction)
+
                 End If
 
             Catch ex As Exception
 
-                RaiseEvent OnError("Do BinaryLog Error !")
+                RaiseEvent OnMessageError(aSecsMessage, "Send Primary Error")
 
-            End Try
-
-            ' 紀錄 SML Log
-            Try
-                If siniFile.TxLog = True Then
-
-                    Dim tempSW As StreamWriter = File.AppendText(Application.StartupPath & "\SECSLog\TxLog.txt")
-
-                    tempSW.WriteLine(aTxLogString)
-                    tempSW.Flush()
-                    tempSW.Close()
-                    tempSW.Dispose()
+                ' 刪除 Primary
+                If aSecsMessage IsNot Nothing Then
+                    aSecsMessage.Dispose()
                 End If
-            Catch ex As Exception
 
-                RaiseEvent OnError("Do BinaryLog Error !")
+                ' 刪除 Transaction
+                sTransaction = Nothing
 
             End Try
 
         End Sub
+
+
+        Public Sub SendT8TimeoutMessage(ByRef aSecsMessage As SecsMessage)
+
+            Dim sTransaction As SecsTransaction
+
+            Try
+                ' 檢查 System Bytes
+                aSecsMessage.messageFormat.SystemBytes = BitConverter.GetBytes(getSystemByte())
+                Array.Reverse(aSecsMessage.messageFormat.SystemBytes)
+
+                ' 檢查 Device ID
+                If siniFile.Role = enumRole.sHost And aSecsMessage.MessageType = enumMessageType.sDataMessage Then
+
+                    aSecsMessage.messageFormat.DeviceID(0) = Convert.ToByte(siniFile.DeviceID)
+
+                ElseIf siniFile.Role = enumRole.sEquipment And aSecsMessage.MessageType = enumMessageType.sDataMessage Then
+
+                    aSecsMessage.messageFormat.DeviceID(1) = Convert.ToByte(siniFile.DeviceID)
+
+                End If
+
+                ' 檢查 Messae 是否為不需回覆的 Message
+                If sSXML.sDontNeedToReplyList.Contains(aSecsMessage.MessageName) = True Then
+
+                    ' 紀錄 Log
+                    If siniFile.BinaryLog = True Then
+                        sLog.DoBinaryLog(aSecsMessage.ConvertToBinaryLog("SND"))
+                    End If
+
+                    If siniFile.TxLog = True Then
+                        sLog.DoTxLog(aSecsMessage.ConvertToSML("PrimaryOut"))
+                    End If
+
+                    ' NEW 一個 SecsTransaction
+                    sTransaction = New SecsTransaction()
+                    sTransaction.Primary = aSecsMessage
+                    RaiseEvent OnPrimarySent(sTransaction)
+
+                    SocketSend(aSecsMessage)
+
+                Else
+                    ' New 一個 SecsTransaction，並把 Primary 放在裡面
+                    sTransaction = New SecsTransaction()
+                    sTransaction.Primary = aSecsMessage
+
+                    Dim tempByte As Byte() = ConvertToBytes(aSecsMessage)
+                    Dim tempByteALength As Int16 = tempByte.Length / 2
+                    Dim tempByteA As Byte() = New Byte(tempByteALength - 1) {}
+                    Dim tempByteB As Byte() = New Byte(tempByteALength - 1) {}
+                    Array.Copy(tempByte, 0, tempByteA, 0, tempByteALength)
+                    Array.Copy(tempByte, tempByteALength, tempByteB, 0, tempByteALength)
+
+                    If Me.siniFile.Entity = enumSecsEntity.sActive Then
+                        sClient.send(tempByteA)
+                        Application.DoEvents()
+                        Thread.Sleep(7000)
+                        sClient.send(tempByteB)
+                    Else
+                        sServer.send(tempByteA)
+                        Application.DoEvents()
+                        Thread.Sleep(7000)
+                        sServer.send(tempByteB)
+
+                    End If
+
+                    RaiseEvent OnPrimarySent(sTransaction)
+                    sTransaction.State = enumSecsTransactionState.PrimarySent
+
+                    ' SendTransactionMap 新增此 Transaction
+                    Dim SystemByteString As String = Nothing
+
+                    For i As Integer = 0 To aSecsMessage.messageFormat.SystemBytes.Length - 1
+                        SystemByteString = SystemByteString & aSecsMessage.messageFormat.SystemBytes(i)
+                    Next
+
+                    SendTransactionMap.TryAdd(SystemByteString, sTransaction)
+
+                End If
+
+            Catch ex As Exception
+
+                RaiseEvent OnMessageError(aSecsMessage, "Send Primary Error")
+
+                ' 刪除 Primary
+                If aSecsMessage IsNot Nothing Then
+                    aSecsMessage.Dispose()
+                End If
+
+                ' 刪除 Transaction
+                sTransaction = Nothing
+
+            End Try
+
+        End Sub
+
 
     End Class
 
