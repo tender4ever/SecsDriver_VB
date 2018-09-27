@@ -563,7 +563,7 @@ Namespace SecsDriver
                 End If
 
                 Application.DoEvents()
-                Thread.Sleep(10)
+                Thread.Sleep(1)
 
             Loop While Not SocketState = enumSecsConnectionState.sSeparate
 
@@ -618,6 +618,14 @@ Namespace SecsDriver
 
                                         sTimeoutList(i) = Nothing
                                         sTimeoutList.RemoveAt(i)
+
+                                        If Me.siniFile.Entity = enumSecsEntity.sActive Then
+
+                                            sClient.disconnect()
+                                        Else
+                                            sServer.disconnect()
+                                        End If
+
                                         Exit For
 
                                     End If
@@ -1830,15 +1838,11 @@ Namespace SecsDriver
                     Array.Copy(tempByte, tempByteALength, tempByteB, 0, tempByteALength)
 
                     If Me.siniFile.Entity = enumSecsEntity.sActive Then
+
                         sClient.send(tempByteA)
-                        Application.DoEvents()
-                        Thread.Sleep(7000)
-                        sClient.send(tempByteB)
+
                     Else
                         sServer.send(tempByteA)
-                        Application.DoEvents()
-                        Thread.Sleep(7000)
-                        sServer.send(tempByteB)
 
                     End If
 
@@ -1872,6 +1876,9 @@ Namespace SecsDriver
 
         End Sub
 
+        Private Sub TimerTick(ByVal state As Object)
+
+        End Sub
 
     End Class
 
