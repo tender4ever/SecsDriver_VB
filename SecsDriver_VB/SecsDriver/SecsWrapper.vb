@@ -726,8 +726,9 @@ Namespace SecsDriver
                                                     ' 回覆 S9F9 
                                                     Dim tempSecsMessage As SecsMessage = GetMessageByName("S9F9_TransactionTimerTimeout")
                                                     Dim tempByte As Byte() = ConvertToBytes(item.Value.Primary)
-                                                    Array.Copy(tempByte, tempByte, 14)
-                                                    tempSecsMessage.secsItem.SetItemValue(tempByte)
+                                                    Dim MessageHeader As Byte() = New Byte(13) {}
+                                                    Array.Copy(tempByte, MessageHeader, 14)
+                                                    tempSecsMessage.secsItem.SetItemValue(MessageHeader)
                                                     SendPrimary(tempSecsMessage)
 
                                                     ' 清除 Primary Message
@@ -752,8 +753,9 @@ Namespace SecsDriver
                                                     ' 回覆 S9F9
                                                     Dim tempSecsMessage As SecsMessage = GetMessageByName("S9F9_TransactionTimerTimeout")
                                                     Dim tempByte As Byte() = ConvertToBytes(item.Value.Primary)
-                                                    Array.Copy(tempByte, tempByte, 14)
-                                                    tempSecsMessage.secsItem.SetItemValue(tempByte)
+                                                    Dim MessageHeader As Byte() = New Byte(13) {}
+                                                    Array.Copy(tempByte, MessageHeader, 14)
+                                                    tempSecsMessage.secsItem.SetItemValue(MessageHeader)
                                                     SendPrimary(tempSecsMessage)
 
                                                     ' 清除 Primary Message
@@ -1461,8 +1463,9 @@ Namespace SecsDriver
 
                                     Dim tempSecsMessage As SecsMessage = GetMessageByName("S9F1_UnrecognizedDeviceID")
                                     Dim tempByte As Byte() = ConvertToBytes(sSecsMessage)
-                                    Array.Copy(tempByte, tempByte, 14)
-                                    tempSecsMessage.secsItem.SetItemValue(tempByte)
+                                    Dim MessageHeader As Byte() = New Byte(13) {}
+                                    Array.Copy(tempByte, MessageHeader, 14)
+                                    tempSecsMessage.secsItem.SetItemValue(MessageHeader)
 
                                     SendPrimary(tempSecsMessage)
 
@@ -1492,8 +1495,9 @@ Namespace SecsDriver
 
                                     Dim tempSecsMessage As SecsMessage = GetMessageByName("S9F1_UnrecognizedDeviceID")
                                     Dim tempByte As Byte() = ConvertToBytes(sSecsMessage)
-                                    Array.Copy(tempByte, tempByte, 14)
-                                    tempSecsMessage.secsItem.SetItemValue(tempByte)
+                                    Dim MessageHeader As Byte() = New Byte(13) {}
+                                    Array.Copy(tempByte, MessageHeader, 14)
+                                    tempSecsMessage.secsItem.SetItemValue(MessageHeader)
 
                                     SendPrimary(tempSecsMessage)
 
@@ -1527,8 +1531,9 @@ Namespace SecsDriver
                                         ' 回覆 S9F7 訊息
                                         Dim tempSecsMessage As SecsMessage = GetMessageByName("S9F7_IllegalData")
                                         Dim tempByte As Byte() = ConvertToBytes(sSecsMessage)
-                                        Array.Copy(tempByte, tempByte, 14)
-                                        tempSecsMessage.secsItem.SetItemValue(tempByte)
+                                        Dim MessageHeader As Byte() = New Byte(13) {}
+                                        Array.Copy(tempByte, MessageHeader, 14)
+                                        tempSecsMessage.secsItem.SetItemValue(MessageHeader)
 
                                         SendPrimary(tempSecsMessage)
 
