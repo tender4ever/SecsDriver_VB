@@ -2,6 +2,7 @@
 Imports System.Text
 Imports System.Net.Sockets
 Imports System.Threading
+Imports System.Timers
 
 Namespace SocketDriver
 
@@ -55,6 +56,7 @@ Namespace SocketDriver
 
             Try
                 client = New Net.Sockets.TcpClient()
+                client.NoDelay = True
                 client.Connect(TCPIPAddress, TCPPort)
                 listener.sysMessage("Connected")
 
@@ -62,6 +64,7 @@ Namespace SocketDriver
                 startReceive = New Thread(AddressOf receive)
                 startReceive.IsBackground = True
                 startReceive.Start()
+
 
             Catch e As Exception
 
@@ -91,8 +94,8 @@ Namespace SocketDriver
 		End Sub
 
 
-		' 關閉連線
-		Public Sub disconnect() Implements IFTcpClient.disconnect
+        ' 關閉連線
+        Public Sub disconnect() Implements IFTcpClient.disconnect
 
             startReceive.Abort()
             client.Close()
@@ -121,8 +124,8 @@ Namespace SocketDriver
 		End Sub
 
 
-		' Receive Message
-		Public Sub receive() Implements IFTcpClient.receive
+        ' Receive Message
+        Public Sub receive() Implements IFTcpClient.receive
 
             ' 暫存變數 : 是否繼續 Receive 迴圈
             Dim IsOpen As Boolean = True
@@ -130,11 +133,12 @@ Namespace SocketDriver
             ' 測試用的 Byte
             Dim testByte(1) As Byte
 
-			While IsOpen
+            While IsOpen
 
                 Try
+
                     ' 檢查連線
-                    If client.Client.Poll(0, SelectMode.SelectRead) = False Then
+                    If client.Client.Poll(1, SelectMode.SelectRead) = False Then
 
                         ' 使用 Peek 測試連線是否還存在
                         ' 如果對方斷線時，會在這邊處理
@@ -168,7 +172,7 @@ Namespace SocketDriver
                             ' 當收到的資料位元組數為 0 時
                             If client.Client.Receive(tempBytes) = 0 Then
 
-                                Application.DoEvents()
+                                'Application.DoEvents()
                                 Thread.Sleep(1000)
 
                             Else
@@ -177,6 +181,10 @@ Namespace SocketDriver
 
                                     bufferlist.Add(tempBytes(i))
                                 Next
+
+                                If bufferlist.Count < 4 Then
+                                    Exit Try
+                                End If
 
                                 ' 取前四個 Bytes 來計算出 Message Length
                                 Dim temp(3) As Byte
@@ -200,9 +208,8 @@ Namespace SocketDriver
 
                                     listener.onMessage(messageByte)
 
-                                    Application.DoEvents()
-                                    Thread.Sleep(1)
-
+                                Else
+                                    listener.sysMessage("Set T8 Timeout")
                                 End If
 
                             End If
@@ -220,9 +227,9 @@ Namespace SocketDriver
 
             End While
 
-		End Sub
+        End Sub
 
-	End Class
+    End Class
 
 End Namespace
 

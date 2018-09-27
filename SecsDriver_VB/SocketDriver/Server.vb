@@ -19,6 +19,8 @@ Namespace SocketDriver
 
         Private bufferList As ArrayList                             ' 暫存區
 
+        Private sTimeout As Timeout                                 ' Timeout
+
 
         ' 建構子
         Public Sub New(ByVal slistener As IFMessageListener, ByVal sMutiConnect As Boolean)
@@ -58,10 +60,11 @@ Namespace SocketDriver
         Public Sub connect() Implements IFTcpServer.connect
 
 			Try
-				TCPListener = New TcpListener(TCPIPAddress, TCPPort)
-				TCPListener.Start()
-                TCPSocket = TCPListener.AcceptSocket()
+                TCPListener = New TcpListener(TCPIPAddress, TCPPort)
 
+                TCPListener.Start()
+                TCPSocket = TCPListener.AcceptSocket()
+                TCPSocket.NoDelay = True
                 If MutiConnect = True Then
 
                 Else
@@ -70,6 +73,7 @@ Namespace SocketDriver
                 End If
 
                 listener.sysMessage("Connected")
+
 
                 ' New Thread (負責 Receive Message 的 Thread)
                 startReceive = New Thread(AddressOf receive)
@@ -85,15 +89,15 @@ Namespace SocketDriver
 		End Sub
 
 
-		' 重新連線
-		Public Sub Reconnect()
+        ' 重新連線
+        Public Sub Reconnect()
 
-			Try
-				TCPSocket.Close()
-				TCPSocket.Dispose()
-				TCPListener.Stop()
+            Try
+                TCPSocket.Close()
+                TCPSocket.Dispose()
+                TCPListener.Stop()
 
-			Catch e As Exception
+            Catch e As Exception
 
                 listener.sysMessage("NotConnected")
 
@@ -102,11 +106,11 @@ Namespace SocketDriver
             ' 連線
             connect()
 
-		End Sub
+        End Sub
 
 
-		' 關閉連線
-		Public Sub disconnect() Implements IFTcpServer.disconnect
+        ' 關閉連線
+        Public Sub disconnect() Implements IFTcpServer.disconnect
 
             startReceive.Abort()
             TCPSocket.Close()
@@ -120,8 +124,8 @@ Namespace SocketDriver
 			Try
 				If TCPSocket.Connected Then
 
-					TCPSocket.Send(message)
-				Else
+                    TCPSocket.Send(message)
+                Else
 
                     listener.sysMessage("NotConnected")
 
@@ -141,15 +145,18 @@ Namespace SocketDriver
             ' 暫存變數 : 是否繼續 Receive 迴圈
             Dim IsOpen As Boolean = True
 
-            ' 測試用的 Byte
-            Dim testByte(0) As Byte
+            ' 測試連線是否存在所使用的 Byte
+            Dim testByte(1) As Byte
 
-			While IsOpen
+            ' Socket連線是否已經斷線
+            Dim IsSocketClosed As Boolean = False
+
+            While IsOpen
 
                 Try
 
                     ' 檢查連線
-                    If TCPSocket.Poll(0, SelectMode.SelectRead) = False Then
+                    If TCPSocket.Poll(1, SelectMode.SelectRead) = False Then
 
                         ' 使用 Peek 測試連線是否還存在
                         ' 如果對方斷線時，會在這邊處理
@@ -175,7 +182,7 @@ Namespace SocketDriver
                             ' 當收到的資料位元組數為 0 時
                             If TCPSocket.Receive(tempBytes) = 0 Then
 
-                                Application.DoEvents()
+                                'Application.DoEvents()
                                 Thread.Sleep(1000)
 
                             Else
@@ -185,6 +192,10 @@ Namespace SocketDriver
 
                                     bufferList.Add(tempBytes(i))
                                 Next
+
+                                If bufferList.Count < 4 Then
+                                    Exit Try
+                                End If
 
                                 ' 取前四個 Bytes 來計算出 Message Length
                                 Dim temp(3) As Byte
@@ -209,11 +220,8 @@ Namespace SocketDriver
 
                                     listener.onMessage(messageByte)
 
-                                    Application.DoEvents()
-                                    Thread.Sleep(1)
-
                                 Else
-
+                                    listener.sysMessage("Set T8 Timeout")
                                 End If
 
                             End If
