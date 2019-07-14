@@ -7,19 +7,33 @@ Imports System.Timers
 Namespace SocketDriver
 
 
+    ''' <summary>
+    ''' TCP Client
+    ''' </summary>
     Public Class Client : Implements IFTcpClient
+
+
+#Region "Private 屬性"
 
         Private TCPIPAddress As String                      ' TCP IP Address
         Private TCPPort As Integer                          ' TCP Port
         Private client As System.Net.Sockets.TcpClient      ' TCP Client 物件
+
         Private listener As IFMessageListener               ' Message Listener
 
         Private startReceive As Thread                      ' 負責 Receive Message 的 Thread
 
         Private bufferlist As ArrayList                     ' 暫存區
 
+#End Region
 
-        ' 建構子
+
+#Region "建構子"
+
+        ''' <summary>
+        ''' 建構子
+        ''' </summary>
+        ''' <param name="slistener"></param>
         Public Sub New(ByVal slistener As IFMessageListener)
 
 			TCPIPAddress = "127.0.0.1"
@@ -35,12 +49,17 @@ Namespace SocketDriver
 		End Sub
 
 
-		' 建構子
-		Public Sub New(ByVal slistener As IFMessageListener, ByVal sIPAddress As String, ByVal sPort As Integer)
+        ''' <summary>
+        ''' 建構子
+        ''' </summary>
+        ''' <param name="slistener"></param>
+        ''' <param name="sIPAddress"></param>
+        ''' <param name="sPort"></param>
+        Public Sub New(ByVal slistener As IFMessageListener, ByVal sIPAddress As String, ByVal sPort As Integer)
 
 			TCPIPAddress = sIPAddress
 			TCPPort = sPort
-			listener = slistener
+            listener = slistener
 
             ' New ArrayList (暫存區)
             bufferlist = New ArrayList
@@ -50,9 +69,15 @@ Namespace SocketDriver
 
 		End Sub
 
+#End Region
 
-		' 連線
-		Public Sub connect() Implements IFTcpClient.connect
+
+#Region " Public Method"
+
+        ''' <summary>
+        ''' 連線
+        ''' </summary>
+        Public Sub connect() Implements IFTcpClient.connect
 
             Try
                 client = New Net.Sockets.TcpClient()
@@ -65,18 +90,18 @@ Namespace SocketDriver
                 startReceive.IsBackground = True
                 startReceive.Start()
 
-
             Catch e As Exception
 
                 listener.sysMessage("NotConnected")
-
             End Try
 
         End Sub
 
 
-		' 重新連線
-		Public Sub Reconnect()
+        ''' <summary>
+        ''' 重新連線
+        ''' </summary>
+        Public Sub Reconnect()
 
 			Try
 				client.Close()
@@ -85,8 +110,7 @@ Namespace SocketDriver
 			Catch e As Exception
 
                 listener.sysMessage("NotConnected")
-
-			End Try
+            End Try
 
             ' 連線
             connect()
@@ -94,7 +118,9 @@ Namespace SocketDriver
 		End Sub
 
 
-        ' 關閉連線
+        ''' <summary>
+        ''' 關閉連線
+        ''' </summary>
         Public Sub disconnect() Implements IFTcpClient.disconnect
 
             startReceive.Abort()
@@ -103,8 +129,11 @@ Namespace SocketDriver
 		End Sub
 
 
-		' Send Message
-		Public Sub send(ByVal message As Byte()) Implements IFTcpClient.send
+        ''' <summary>
+        ''' Send Message
+        ''' </summary>
+        ''' <param name="message"></param>
+        Public Sub send(ByVal message As Byte()) Implements IFTcpClient.send
 
 			Try
                 If client.Client.Connected Then
@@ -124,7 +153,9 @@ Namespace SocketDriver
 		End Sub
 
 
-        ' Receive Message
+        ''' <summary>
+        ''' Receive Message
+        ''' </summary>
         Public Sub receive() Implements IFTcpClient.receive
 
             ' 暫存變數 : 是否繼續 Receive 迴圈
@@ -136,7 +167,6 @@ Namespace SocketDriver
             While IsOpen
 
                 Try
-
                     ' 檢查連線
                     If client.Client.Poll(1, SelectMode.SelectRead) = False Then
 
@@ -228,6 +258,10 @@ Namespace SocketDriver
             End While
 
         End Sub
+
+
+#End Region
+
 
     End Class
 

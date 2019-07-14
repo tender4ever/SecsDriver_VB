@@ -6,13 +6,21 @@ Imports System.Threading
 Namespace SocketDriver
 
 
-	Public Class Server : Implements SocketDriver.IFTcpServer
+    ''' <summary>
+    ''' TCP Server
+    ''' </summary>
+    Public Class Server : Implements SocketDriver.IFTcpServer
 
-		Private TCPIPAddress As System.Net.IPAddress                ' TCP IP Address 物件
-		Private TCPPort As Integer                                  ' TCP Port
+
+#Region "Private 屬性"
+
+        Private TCPIPAddress As System.Net.IPAddress                ' TCP IP Address 物件
+        Private TCPPort As Integer                                  ' TCP Port
         Public TCPListener As TcpListener                           ' TCP Listener 物件
         Private TCPSocket As Socket                                 ' TCP Socket 物件
-		Private listener As IFMessageListener                       ' Message Listener
+
+        Private listener As IFMessageListener                       ' Message Listener
+
         Private MutiConnect As Boolean                              ' 是否允許多 Client 連線
 
         Private startReceive As Thread                              ' 負責 Receive Message 的 Thread
@@ -21,8 +29,16 @@ Namespace SocketDriver
 
         Private sTimeout As Timeout                                 ' Timeout
 
+#End Region
 
-        ' 建構子
+
+#Region "建構子"
+
+        ''' <summary>
+        ''' 建構子
+        ''' </summary>
+        ''' <param name="slistener"></param>
+        ''' <param name="sMutiConnect"></param>
         Public Sub New(ByVal slistener As IFMessageListener, ByVal sMutiConnect As Boolean)
 
             TCPIPAddress = System.Net.IPAddress.Parse("127.0.0.1")
@@ -39,12 +55,20 @@ Namespace SocketDriver
         End Sub
 
 
-        ' 建構子
+        ''' <summary>
+        ''' 建構子
+        ''' </summary>
+        ''' <param name="slistener"></param>
+        ''' <param name="sIPAddress"></param>
+        ''' <param name="sPort"></param>
+        ''' <param name="sMutiConnect"></param>
         Public Sub New(ByVal slistener As IFMessageListener, ByVal sIPAddress As String, ByVal sPort As Integer, ByVal sMutiConnect As Boolean)
 
-            TCPIPAddress = System.Net.IPAddress.Parse(sIPAddress)
-            TCPPort = sPort
-            listener = slistener
+
+            TCPIPAddress = System.Net.IPAddress.Parse(sIPAddress)   ' 設定 IP
+            TCPPort = sPort                                         ' 設定 Port
+
+            listener = slistener                                    ' 設定 Listener
             MutiConnect = sMutiConnect
 
             ' New ArrayList (暫存區)
@@ -56,7 +80,14 @@ Namespace SocketDriver
         End Sub
 
 
-        ' 連線
+#End Region
+
+
+#Region "Public Method"
+
+        ''' <summary>
+        ''' 連線
+        ''' </summary>
         Public Sub connect() Implements IFTcpServer.connect
 
 			Try
@@ -65,6 +96,7 @@ Namespace SocketDriver
                 TCPListener.Start()
                 TCPSocket = TCPListener.AcceptSocket()
                 TCPSocket.NoDelay = True
+
                 If MutiConnect = True Then
 
                 Else
@@ -83,13 +115,14 @@ Namespace SocketDriver
 			Catch e As Exception
 
                 listener.sysMessage("NotConnected")
-
-			End Try
+            End Try
 
 		End Sub
 
 
-        ' 重新連線
+        ''' <summary>
+        ''' 重新連線
+        ''' </summary>
         Public Sub Reconnect()
 
             Try
@@ -100,7 +133,6 @@ Namespace SocketDriver
             Catch e As Exception
 
                 listener.sysMessage("NotConnected")
-
             End Try
 
             ' 連線
@@ -109,7 +141,9 @@ Namespace SocketDriver
         End Sub
 
 
-        ' 關閉連線
+        ''' <summary>
+        ''' 關閉連線
+        ''' </summary>
         Public Sub disconnect() Implements IFTcpServer.disconnect
 
             startReceive.Abort()
@@ -118,28 +152,31 @@ Namespace SocketDriver
 		End Sub
 
 
-		' Send Message 
-		Public Sub send(ByVal message As Byte()) Implements IFTcpServer.send
+        ''' <summary>
+        ''' Send Message
+        ''' </summary>
+        ''' <param name="message"></param>
+        Public Sub send(ByVal message As Byte()) Implements IFTcpServer.send
 
-			Try
-				If TCPSocket.Connected Then
+            Try
+                If TCPSocket.Connected Then
 
                     TCPSocket.Send(message)
                 Else
 
                     listener.sysMessage("NotConnected")
-
                 End If
 
-			Catch ex As Exception
+            Catch ex As Exception
 
                 listener.sysMessage("NotConnected")
-
             End Try
-		End Sub
+        End Sub
 
 
-        ' Receive Message
+        ''' <summary>
+        ''' Receive Message
+        ''' </summary>
         Public Sub receive() Implements IFTcpServer.receive
 
             ' 暫存變數 : 是否繼續 Receive 迴圈
@@ -241,7 +278,10 @@ Namespace SocketDriver
 
 		End Sub
 
-	End Class
+#End Region
+
+
+    End Class
 
 End Namespace
 
