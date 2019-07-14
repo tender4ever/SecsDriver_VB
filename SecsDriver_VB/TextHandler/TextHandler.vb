@@ -4,6 +4,10 @@ Imports System.Runtime.InteropServices
 
 Namespace TextHandler
 
+
+    ''' <summary>
+    ''' Text Handler
+    ''' </summary>
     Public Class TextHandler
 
         ' 引用外部程式
@@ -18,11 +22,22 @@ Namespace TextHandler
 
         End Function
 
-        Public sFilePath As String               ' File 檔案路徑
+
+#Region "Public 屬性"
+
+        Public sFilePath As String              ' File 檔案路徑
         Public sSection As String               ' Section
 
+#End Region
 
-        ' 建構子
+
+#Region "Public Method"
+
+        ''' <summary>
+        ''' 建構子
+        ''' </summary>
+        ''' <param name="aFilePath"></param>
+        ''' <param name="aSection"></param>
         Public Sub New(ByRef aFilePath As String, ByRef aSection As String)
 
             sFilePath = aFilePath
@@ -31,7 +46,12 @@ Namespace TextHandler
         End Sub
 
 
-        ' 取得資料
+        ''' <summary>
+        ''' 取得資料
+        ''' </summary>
+        ''' <param name="aKeyName"></param>
+        ''' <param name="aDefault"></param>
+        ''' <returns></returns>
         Public Function GetData(ByRef aKeyName As String, ByRef aDefault As String) As String
 
             Dim chars As Integer = 256
@@ -44,12 +64,19 @@ Namespace TextHandler
         End Function
 
 
-        ' 設定資料
+        ''' <summary>
+        ''' 設定資料
+        ''' </summary>
+        ''' <param name="aKeyName"></param>
+        ''' <param name="aValue"></param>
         Public Sub SetData(ByRef aKeyName As String, ByRef aValue As String)
 
             SetIniData(sSection, aKeyName, aValue, sFilePath)
 
         End Sub
+
+#End Region
+
 
     End Class
 
