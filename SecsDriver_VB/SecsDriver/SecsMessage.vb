@@ -340,7 +340,7 @@ Namespace SecsDriver
         End Function
 
 
-        ' 將 SecsMessage 轉換成 SML
+        ' 將 SecsMessage 轉換成 SML 格式
         Public Function ConvertToSML(ByRef aType As String) As String
 
             Dim temp As String

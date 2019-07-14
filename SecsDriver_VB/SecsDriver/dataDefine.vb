@@ -1,27 +1,34 @@
 ﻿Namespace SecsDriver
 
-	' Secs Entity
-	' STKC = Passive
-	' MCS = Active
-	Public Enum enumSecsEntity
 
-		sActive
-		sPassive
+    ''' <summary>
+    ''' Secs Entity
+    ''' STKC = Passive
+    ''' MCS = Active
+    ''' </summary>
+    Public Enum enumSecsEntity
 
-	End Enum
+        sActive
+        sPassive
+    End Enum
 
-	' Role
-	' STKC = Equipment
-	' MCS = Host
-	Public Enum enumRole
+
+    ''' <summary>
+    ''' Role
+    ''' STKC = Equipment
+    ''' MCS = Host
+    ''' </summary>
+    Public Enum enumRole
 
 		sHost
-		sEquipment
+        sEquipment
+    End Enum
 
-	End Enum
 
-	' Secs Connection State
-	Public Enum enumSecsConnectionState
+    ''' <summary>
+    ''' Secs Connection State
+    ''' </summary>
+    Public Enum enumSecsConnectionState
 
 		sNone
 		sNotConnected
@@ -31,8 +38,11 @@
 
 	End Enum
 
-	' Message Type
-	Public Enum enumMessageType
+
+    ''' <summary>
+    ''' Message Type
+    ''' </summary>
+    Public Enum enumMessageType
 
 		sDataMessage
 		sSelectRequest
@@ -46,8 +56,11 @@
 
 	End Enum
 
-	' Item Format Code
-	Public Enum enumItemFormatCode
+
+    ''' <summary>
+    ''' Item Format Code
+    ''' </summary>
+    Public Enum enumItemFormatCode
 
 		sList = &H0
 		sBinary = &H20
@@ -68,7 +81,10 @@
 
 	End Enum
 
-    ' Secs Transaction State
+
+    ''' <summary>
+    ''' Secs Transaction State
+    ''' </summary>
     Public Enum enumSecsTransactionState
 
         Create
@@ -87,7 +103,10 @@
 
     End Enum
 
-    ' Timeout Type
+
+    ''' <summary>
+    ''' Timeout Type
+    ''' </summary>
     Public Enum enumTimeout
 
         T1
@@ -100,5 +119,6 @@
         T8
 
     End Enum
+
 
 End Namespace

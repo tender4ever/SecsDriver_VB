@@ -2,10 +2,15 @@
 
 Namespace SecsDriver
 
-	Friend Class ItemFormat : Implements ICloneable
+    ''' <summary>
+    ''' Item Format
+    ''' </summary>
+    Friend Class ItemFormat : Implements ICloneable
 
 
-        ' Lock 物件
+        ''' <summary>
+        ''' Lock 物件
+        ''' </summary>
         Private Shared thisLock As Object = New Object
 
 

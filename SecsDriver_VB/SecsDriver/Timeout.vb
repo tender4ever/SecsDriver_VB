@@ -2,19 +2,42 @@
 
 Namespace SecsDriver
 
+    ''' <summary>
+    ''' Timeout 物件
+    ''' </summary>
     Public Class Timeout
 
-        ' Timeout 值
+
+#Region "Private 屬性"
+
+        ''' <summary>
+        ''' 發生 Timeout 的時間值(秒)
+        ''' </summary>
         Private sTimeoutValue As Double
 
-        ' 開始啟動 Timeout 的時間
+        ''' <summary>
+        ''' 開始啟動 Timeout 的時間
+        ''' </summary>
         Private sStartTime As DateTime
+
+#End Region
+
+
+#Region "Public 屬性"
 
         ' Timeout Type
         Public sTimeoutType As enumTimeout
 
+#End Region
 
-        ' 建構子
+
+#Region "建構子"
+
+        ''' <summary>
+        ''' 建構子
+        ''' </summary>
+        ''' <param name="aTimeoutValue"></param>
+        ''' <param name="aTimeoutType"></param>
         Public Sub New(ByVal aTimeoutValue As Double, ByVal aTimeoutType As enumTimeout)
 
             sTimeoutValue = aTimeoutValue
@@ -23,8 +46,15 @@ Namespace SecsDriver
 
         End Sub
 
+#End Region
 
-        ' 檢查是否發生 Timeout
+
+#Region "Public Method"
+
+        ''' <summary>
+        ''' 查是否發生 Timeout
+        ''' </summary>
+        ''' <returns></returns>
         Public Function CheckTimeout() As Boolean
 
             ' 目前時間
@@ -42,6 +72,9 @@ Namespace SecsDriver
             Return False
 
         End Function
+
+#End Region
+
 
     End Class
 

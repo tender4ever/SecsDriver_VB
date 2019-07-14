@@ -6,348 +6,16 @@ Namespace SecsDriver
 
 	Public Class IniFile
 
-		' 引用外部程式
-		<DllImport("kernel32.dll", EntryPoint:="GetPrivateProfileString")>
-		Private Shared Function GetIniData(ByVal aAppName As String, ByVal aKeyName As String, ByVal aDefault As String, ByVal aReturnedString As StringBuilder, ByVal aSize As Integer, ByVal aFileName As String) As Integer
 
-		End Function
+#Region "Private 屬性"
 
-		' 引用外部程式
-		<DllImport("kernel32.dll", EntryPoint:="WritePrivateProfileString")>
-		Private Shared Function SetIniData(ByVal aAppName As String, ByVal aKeyName As String, ByVal aString As String, ByVal aFileName As String)
-
-		End Function
-
-
-		Private sIniFilePath As String              ' iniFile 檔案路徑
+        Private sIniFilePath As String              ' iniFile 檔案路徑
         Private sSection As String                  ' Section
 
+#End Region
 
-        ' 建構子
-        Protected Friend Sub New(ByVal aIniFilePath As String)
 
-            Dim chars As Integer = 256
-            Dim buffer As StringBuilder = New StringBuilder(chars)
-
-            ' IniFilePath
-            sIniFilePath = aIniFilePath
-
-            ' Section
-            sSection = "SECS"
-
-            ' SXMLPath
-            GetIniData(sSection, "SXMLFile", "SecsWrapperX_AMHS.sxml", buffer, chars, sIniFilePath)
-            SXMLPath = buffer.ToString
-
-            ' Entity
-            GetIniData(sSection, "Entity", "Passive", buffer, chars, sIniFilePath)
-
-            If buffer.ToString = "Passive" Then
-                Entity = enumSecsEntity.sPassive
-            Else
-                Entity = enumSecsEntity.sActive
-            End If
-
-            ' Role
-            GetIniData(sSection, "Role", "Equipment", buffer, chars, sIniFilePath)
-
-            If buffer.ToString = "Equipment" Then
-                Role = enumRole.sEquipment
-            Else
-                Role = enumRole.sHost
-            End If
-
-            ' LinkType
-            GetIniData(sSection, "LinkType", "HSMS", buffer, chars, sIniFilePath)
-            LinkType = buffer.ToString
-
-            ' DeviceName
-            GetIniData(sSection, "DeviceName", "HSMS", buffer, chars, sIniFilePath)
-            DeviceName = buffer.ToString
-
-            ' Device ID
-            GetIniData(sSection, "DeviceID", "0x0000", buffer, chars, sIniFilePath)
-            DeviceID = Convert.ToUInt16(buffer.ToString, 16)
-
-            ' 讀取 Retry
-            GetIniData(sSection, "Retry", "3", buffer, chars, sIniFilePath)
-            Retry = Convert.ToInt16(buffer.ToString)
-
-            ' 讀取 IP
-            GetIniData(sSection, "IP", "127.0.0.1", buffer, chars, sIniFilePath)
-            IP = buffer.ToString
-
-            ' 讀取 Port
-            GetIniData(sSection, "Port", "5000", buffer, chars, sIniFilePath)
-            Port = Convert.ToInt32(buffer.ToString)
-
-            ' 讀取 Timeout 設定值
-            GetIniData(sSection, "T1", "1", buffer, chars, sIniFilePath)
-            T1Timeout = Convert.ToInt32(buffer.ToString)
-            GetIniData(sSection, "T2", "10", buffer, chars, sIniFilePath)
-            T2Timeout = Convert.ToInt32(buffer.ToString)
-            GetIniData(sSection, "T3", "45", buffer, chars, sIniFilePath)
-            T3Timeout = Convert.ToInt32(buffer.ToString)
-            GetIniData(sSection, "T4", "10", buffer, chars, sIniFilePath)
-            T4Timeout = Convert.ToInt32(buffer.ToString)
-            GetIniData(sSection, "T5", "10", buffer, chars, sIniFilePath)
-            T5Timeout = Convert.ToInt32(buffer.ToString)
-            GetIniData(sSection, "T6", "5", buffer, chars, sIniFilePath)
-            T6Timeout = Convert.ToInt32(buffer.ToString)
-            GetIniData(sSection, "T7", "10", buffer, chars, sIniFilePath)
-            T7Timeout = Convert.ToInt32(buffer.ToString)
-            GetIniData(sSection, "T8", "5", buffer, chars, sIniFilePath)
-            T8Timeout = Convert.ToInt32(buffer.ToString)
-            GetIniData(sSection, "CA", "30", buffer, chars, sIniFilePath)
-            CATimeout = Convert.ToInt32(buffer.ToString)
-
-            ' 讀取 Heartbeat 設定值
-            GetIniData(sSection, "InterleaveEnabled", "True", buffer, chars, sIniFilePath)
-
-            If buffer.ToString = "False" Then
-                InterleaveEnabled = False
-            Else
-                InterleaveEnabled = True
-            End If
-
-            GetIniData(sSection, "HeartbeatEnabled", "False", buffer, chars, sIniFilePath)
-
-            If buffer.ToString = "False" Then
-                HeartbeatEnabled = False
-            Else
-                HeartbeatEnabled = True
-            End If
-
-            GetIniData(sSection, "HeartbeatInterval", "30", buffer, chars, sIniFilePath)
-            HeartbeatInterval = Convert.ToUInt32(buffer.ToString)
-
-            GetIniData(sSection, "HeartbeatTag", " ", buffer, chars, sIniFilePath)
-            HeartbeatTag = buffer.ToString
-
-            ' 讀取 AutoReply 設定值
-            GetIniData(sSection, "AutoReply", "False", buffer, chars, sIniFilePath)
-
-            If buffer.ToString = "False" Then
-                AutoReply = False
-            Else
-                AutoReply = True
-            End If
-
-            ' 讀取 BinaryLog 設定值
-            GetIniData(sSection, "BinaryLog", "False", buffer, chars, sIniFilePath)
-
-            If buffer.ToString = "False" Then
-                BinaryLog = False
-            Else
-                BinaryLog = True
-            End If
-
-            ' 讀取 TxLog 設定值
-            GetIniData(sSection, "TxLog", "False", buffer, chars, sIniFilePath)
-
-            If buffer.ToString = "False" Then
-                TxLog = False
-            Else
-                TxLog = True
-            End If
-
-        End Sub
-
-
-        ' 重新讀取 Ini File
-        Protected Friend Sub ReLoadIniFile()
-
-            Dim chars As Integer = 256
-            Dim buffer As StringBuilder = New StringBuilder(chars)
-
-            ' Section
-            sSection = "SECS"
-
-            ' SXMLPath
-            GetIniData(sSection, "SXMLFile", "SecsWrapperX_AMHS.sxml", buffer, chars, sIniFilePath)
-            SXMLPath = buffer.ToString
-
-            ' Entity
-            GetIniData(sSection, "Entity", "Passive", buffer, chars, sIniFilePath)
-
-            If buffer.ToString = "Passive" Then
-                Entity = enumSecsEntity.sPassive
-            Else
-                Entity = enumSecsEntity.sActive
-            End If
-
-            ' Role
-            GetIniData(sSection, "Role", "Equipment", buffer, chars, sIniFilePath)
-
-            If buffer.ToString = "Equipment" Then
-                Role = enumRole.sEquipment
-            Else
-                Role = enumRole.sHost
-            End If
-
-            ' LinkType
-            GetIniData(sSection, "LinkType", "HSMS", buffer, chars, sIniFilePath)
-            LinkType = buffer.ToString
-
-            ' DeviceName
-            GetIniData(sSection, "DeviceName", "HSMS", buffer, chars, sIniFilePath)
-            DeviceName = buffer.ToString
-
-            ' Device ID
-            GetIniData(sSection, "DeviceID", "0x0000", buffer, chars, sIniFilePath)
-            DeviceID = Convert.ToUInt16(buffer.ToString, 16)
-
-            ' 讀取 Retry
-            GetIniData(sSection, "Retry", "3", buffer, chars, sIniFilePath)
-            Retry = Convert.ToInt16(buffer.ToString)
-
-            ' 讀取 IP
-            GetIniData(sSection, "IP", "127.0.0.1", buffer, chars, sIniFilePath)
-            IP = buffer.ToString
-
-            ' 讀取 Port
-            GetIniData(sSection, "Port", "5000", buffer, chars, sIniFilePath)
-            Port = Convert.ToInt32(buffer.ToString)
-
-            ' 讀取 Timeout 設定值
-            GetIniData(sSection, "T1", "1", buffer, chars, sIniFilePath)
-            T1Timeout = Convert.ToInt32(buffer.ToString)
-            GetIniData(sSection, "T2", "10", buffer, chars, sIniFilePath)
-            T2Timeout = Convert.ToInt32(buffer.ToString)
-            GetIniData(sSection, "T3", "45", buffer, chars, sIniFilePath)
-            T3Timeout = Convert.ToInt32(buffer.ToString)
-            GetIniData(sSection, "T4", "10", buffer, chars, sIniFilePath)
-            T4Timeout = Convert.ToInt32(buffer.ToString)
-            GetIniData(sSection, "T5", "10", buffer, chars, sIniFilePath)
-            T5Timeout = Convert.ToInt32(buffer.ToString)
-            GetIniData(sSection, "T6", "5", buffer, chars, sIniFilePath)
-            T6Timeout = Convert.ToInt32(buffer.ToString)
-            GetIniData(sSection, "T7", "10", buffer, chars, sIniFilePath)
-            T7Timeout = Convert.ToInt32(buffer.ToString)
-            GetIniData(sSection, "T8", "5", buffer, chars, sIniFilePath)
-            T8Timeout = Convert.ToInt32(buffer.ToString)
-            GetIniData(sSection, "CA", "30", buffer, chars, sIniFilePath)
-            CATimeout = Convert.ToInt32(buffer.ToString)
-
-            ' 讀取 Heartbeat 設定值
-            GetIniData(sSection, "InterleaveEnabled", "True", buffer, chars, sIniFilePath)
-
-            If buffer.ToString = "False" Then
-                InterleaveEnabled = False
-            Else
-                InterleaveEnabled = True
-            End If
-
-            GetIniData(sSection, "HeartbeatEnabled", "False", buffer, chars, sIniFilePath)
-
-            If buffer.ToString = "False" Then
-                HeartbeatEnabled = False
-            Else
-                HeartbeatEnabled = True
-            End If
-
-            GetIniData(sSection, "HeartbeatInterval", "30", buffer, chars, sIniFilePath)
-            HeartbeatInterval = Convert.ToUInt32(buffer.ToString)
-
-            GetIniData(sSection, "HeartbeatTag", " ", buffer, chars, sIniFilePath)
-            HeartbeatTag = buffer.ToString
-
-            ' 讀取 AutoReply 設定值
-            GetIniData(sSection, "AutoReply", "False", buffer, chars, sIniFilePath)
-
-            If buffer.ToString = "False" Then
-                AutoReply = False
-            Else
-                AutoReply = True
-            End If
-
-            ' 讀取 BinaryLog 設定值
-            GetIniData(sSection, "BinaryLog", "False", buffer, chars, sIniFilePath)
-
-            If buffer.ToString = "False" Then
-                BinaryLog = False
-            Else
-                BinaryLog = True
-            End If
-
-            ' 讀取 TxLog 設定值
-            GetIniData(sSection, "TxLog", "False", buffer, chars, sIniFilePath)
-
-            If buffer.ToString = "False" Then
-                TxLog = False
-            Else
-                TxLog = True
-            End If
-
-        End Sub
-
-
-        ' 儲存 Ini File
-        Protected Friend Sub SaveIniFile()
-
-            Dim buffer As String
-
-            ' SXMLPath
-            SetIniData(sSection, "SXMLFile", SXMLPath, sIniFilePath)
-
-            ' Entity
-            If Me.Entity = enumSecsEntity.sPassive Then
-                buffer = "Passive"
-            Else
-                buffer = "Active"
-            End If
-            SetIniData(sSection, "Entity", buffer, sIniFilePath)
-
-            ' Role
-            If Me.Role = enumRole.sEquipment Then
-                buffer = "Equipment"
-            Else
-                buffer = "Host"
-            End If
-            SetIniData(sSection, "Role", buffer, sIniFilePath)
-
-            ' LinkType
-            SetIniData(sSection, "LinkType", LinkType, sIniFilePath)
-
-            ' DeviceName
-            SetIniData(sSection, "DeviceName", DeviceName, sIniFilePath)
-
-            ' Device ID
-            buffer = "0x" + Me.DeviceID.ToString("X4")
-            SetIniData(sSection, "DeviceID", buffer, sIniFilePath)
-
-            ' Retry
-            buffer = Retry.ToString
-            SetIniData(sSection, "Retry", buffer, sIniFilePath)
-
-            ' IP
-            SetIniData(sSection, "IP", IP, sIniFilePath)
-
-            ' Port
-            buffer = Port.ToString
-            SetIniData(sSection, "Port", buffer, sIniFilePath)
-
-            ' Timeout 設定值
-            SetIniData(sSection, "T1", T1Timeout.ToString, sIniFilePath)
-            SetIniData(sSection, "T2", T2Timeout.ToString, sIniFilePath)
-            SetIniData(sSection, "T3", T3Timeout.ToString, sIniFilePath)
-            SetIniData(sSection, "T4", T4Timeout.ToString, sIniFilePath)
-            SetIniData(sSection, "T5", T5Timeout.ToString, sIniFilePath)
-            SetIniData(sSection, "T6", T6Timeout.ToString, sIniFilePath)
-            SetIniData(sSection, "T7", T7Timeout.ToString, sIniFilePath)
-            SetIniData(sSection, "T8", T8Timeout.ToString, sIniFilePath)
-            SetIniData(sSection, "CA", CATimeout.ToString, sIniFilePath)
-
-            ' Heartbeat 設定值
-            SetIniData(sSection, "InterleaveEnabled", InterleaveEnabled.ToString, sIniFilePath)
-            SetIniData(sSection, "HeartbeatEnabled", HeartbeatEnabled.ToString, sIniFilePath)
-            SetIniData(sSection, "HeartbeatInterval", HeartbeatInterval.ToString, sIniFilePath)
-            SetIniData(sSection, "HeartbeatTag", HeartbeatTag, sIniFilePath)
-
-        End Sub
-
-
-        ' --------------------- Property ----------------------------
+#Region "Public 屬性"
 
         ' IniFilePath
         Public ReadOnly Property IniFilePath
@@ -430,6 +98,346 @@ Namespace SecsDriver
 
         ' TxLog
         Public Property TxLog As Boolean
+
+#End Region
+
+
+#Region "Public Method"
+
+        ''' <summary>
+        ''' 建構子
+        ''' </summary>
+        ''' <param name="aIniFilePath"></param>
+        Protected Friend Sub New(ByVal aIniFilePath As String)
+
+            sIniFilePath = aIniFilePath
+
+            ' New TextHandler
+            Dim aTextHandler As TextHandler.TextHandler
+            aTextHandler = New TextHandler.TextHandler(sIniFilePath, "SECS")
+
+            ' SXMLPath
+            SXMLPath = aTextHandler.GetData("SXMLFile", "SecsWrapperX_AMHS.sxml")
+
+            ' Entity
+            Dim aEntity As String = aTextHandler.GetData("Entity", "Passive")
+
+            If aEntity = "Passive" Then
+                Entity = enumSecsEntity.sPassive
+            Else
+                Entity = enumSecsEntity.sActive
+            End If
+
+            ' Role
+            Dim aRole As String = aTextHandler.GetData("Role", "Equipment")
+
+            If aRole = "Equipment" Then
+                Role = enumRole.sEquipment
+            Else
+                Role = enumRole.sHost
+            End If
+
+            ' LinkType
+            LinkType = aTextHandler.GetData("LinkType", "HSMS")
+
+            ' DeviceName
+            DeviceName = aTextHandler.GetData("DeviceName", "HSMS")
+
+            ' Device ID
+            Dim aDeviceID As String = aTextHandler.GetData("DeviceID", "0x0000")
+            DeviceID = Convert.ToUInt16(aDeviceID, 16)
+
+            ' 讀取 Retry
+            Dim aRetry As String = aTextHandler.GetData("Retry", "3")
+            Retry = Convert.ToInt16(aRetry)
+
+            ' 讀取 IP
+            IP = aTextHandler.GetData("IP", "127.0.0.1")
+
+            ' 讀取 Port
+            Dim aPort As String = aTextHandler.GetData("Port", "5000")
+            Port = Convert.ToInt32(aPort)
+
+            ' 讀取 Timeout 設定值
+            Dim aT1 As String = aTextHandler.GetData("T1", "1")
+            T1Timeout = Convert.ToInt32(aT1)
+
+
+            Dim aT2 As String = aTextHandler.GetData("T2", "10")
+            T2Timeout = Convert.ToInt32(aT2)
+
+            Dim aT3 As String = aTextHandler.GetData("T3", "45")
+            T3Timeout = Convert.ToInt32(aT3)
+
+            Dim aT4 As String = aTextHandler.GetData("T4", "10")
+            T4Timeout = Convert.ToInt32(aT4)
+
+            Dim aT5 As String = aTextHandler.GetData("T5", "10")
+            T5Timeout = Convert.ToInt32(aT5)
+
+            Dim aT6 As String = aTextHandler.GetData("T6", "5")
+            T6Timeout = Convert.ToInt32(aT6)
+
+            Dim aT7 As String = aTextHandler.GetData("T7", "10")
+            T7Timeout = Convert.ToInt32(aT7)
+
+            Dim aT8 As String = aTextHandler.GetData("T8", "5")
+            T8Timeout = Convert.ToInt32(aT8)
+
+            Dim aCA As String = aTextHandler.GetData("CA", "30")
+            CATimeout = Convert.ToInt32(aCA)
+
+            ' 讀取 Heartbeat 設定值
+            Dim aInterleaveEnabled As String = aTextHandler.GetData("InterleaveEnabled", "True")
+
+            If aInterleaveEnabled = "False" Then
+                InterleaveEnabled = False
+            Else
+                InterleaveEnabled = True
+            End If
+
+            Dim aHeartbeatEnabled As String = aTextHandler.GetData("HeartbeatEnabled", "False")
+
+            If aHeartbeatEnabled = "False" Then
+                HeartbeatEnabled = False
+            Else
+                HeartbeatEnabled = True
+            End If
+
+            Dim aHeartbeatInterval As String = aTextHandler.GetData("HeartbeatInterval", "30")
+            HeartbeatInterval = Convert.ToUInt32(aHeartbeatInterval)
+
+            HeartbeatTag = aTextHandler.GetData("HeartbeatTag", " ")
+
+            ' 讀取 AutoReply 設定值
+            Dim aAutoReply As String = aTextHandler.GetData("AutoReply", "False")
+
+            If aAutoReply = "False" Then
+                AutoReply = False
+            Else
+                AutoReply = True
+            End If
+
+            ' 讀取 BinaryLog 設定值
+            Dim aBinaryLog As String = aTextHandler.GetData("AutoReply", "False")
+
+            If aBinaryLog = "False" Then
+                BinaryLog = False
+            Else
+                BinaryLog = True
+            End If
+
+            ' 讀取 TxLog 設定值
+            Dim aTxLog As String = aTextHandler.GetData("TxLog", "False")
+
+            If aTxLog = "False" Then
+                TxLog = False
+            Else
+                TxLog = True
+            End If
+
+        End Sub
+
+
+        ''' <summary>
+        ''' 重新讀取 Ini File
+        ''' </summary>
+        Protected Friend Sub ReLoadIniFile()
+
+            ' New TextHandler
+            Dim aTextHandler As TextHandler.TextHandler
+            aTextHandler = New TextHandler.TextHandler(sIniFilePath, "SECS")
+
+            ' SXMLPath
+            SXMLPath = aTextHandler.GetData("SXMLFile", "SecsWrapperX_AMHS.sxml")
+
+            ' Entity
+            Dim aEntity As String = aTextHandler.GetData("Entity", "Passive")
+
+            If aEntity = "Passive" Then
+                Entity = enumSecsEntity.sPassive
+            Else
+                Entity = enumSecsEntity.sActive
+            End If
+
+            ' Role
+            Dim aRole As String = aTextHandler.GetData("Role", "Equipment")
+
+            If aRole = "Equipment" Then
+                Role = enumRole.sEquipment
+            Else
+                Role = enumRole.sHost
+            End If
+
+            ' LinkType
+            LinkType = aTextHandler.GetData("LinkType", "HSMS")
+
+            ' DeviceName
+            DeviceName = aTextHandler.GetData("DeviceName", "HSMS")
+
+            ' Device ID
+            Dim aDeviceID As String = aTextHandler.GetData("DeviceID", "0x0000")
+            DeviceID = Convert.ToUInt16(aDeviceID, 16)
+
+            ' 讀取 Retry
+            Dim aRetry As String = aTextHandler.GetData("Retry", "3")
+            Retry = Convert.ToInt16(aRetry)
+
+            ' 讀取 IP
+            IP = aTextHandler.GetData("IP", "127.0.0.1")
+
+            ' 讀取 Port
+            Dim aPort As String = aTextHandler.GetData("Port", "5000")
+            Port = Convert.ToInt32(aPort)
+
+            ' 讀取 Timeout 設定值
+            Dim aT1 As String = aTextHandler.GetData("T1", "1")
+            T1Timeout = Convert.ToInt32(aT1)
+
+
+            Dim aT2 As String = aTextHandler.GetData("T2", "10")
+            T2Timeout = Convert.ToInt32(aT2)
+
+            Dim aT3 As String = aTextHandler.GetData("T3", "45")
+            T3Timeout = Convert.ToInt32(aT3)
+
+            Dim aT4 As String = aTextHandler.GetData("T4", "10")
+            T4Timeout = Convert.ToInt32(aT4)
+
+            Dim aT5 As String = aTextHandler.GetData("T5", "10")
+            T5Timeout = Convert.ToInt32(aT5)
+
+            Dim aT6 As String = aTextHandler.GetData("T6", "5")
+            T6Timeout = Convert.ToInt32(aT6)
+
+            Dim aT7 As String = aTextHandler.GetData("T7", "10")
+            T7Timeout = Convert.ToInt32(aT7)
+
+            Dim aT8 As String = aTextHandler.GetData("T8", "5")
+            T8Timeout = Convert.ToInt32(aT8)
+
+            Dim aCA As String = aTextHandler.GetData("CA", "30")
+            CATimeout = Convert.ToInt32(aCA)
+
+            ' 讀取 Heartbeat 設定值
+            Dim aInterleaveEnabled As String = aTextHandler.GetData("InterleaveEnabled", "True")
+
+            If aInterleaveEnabled = "False" Then
+                InterleaveEnabled = False
+            Else
+                InterleaveEnabled = True
+            End If
+
+            Dim aHeartbeatEnabled As String = aTextHandler.GetData("HeartbeatEnabled", "False")
+
+            If aHeartbeatEnabled = "False" Then
+                HeartbeatEnabled = False
+            Else
+                HeartbeatEnabled = True
+            End If
+
+            Dim aHeartbeatInterval As String = aTextHandler.GetData("HeartbeatInterval", "30")
+            HeartbeatInterval = Convert.ToUInt32(aHeartbeatInterval)
+
+            HeartbeatTag = aTextHandler.GetData("HeartbeatTag", " ")
+
+            ' 讀取 AutoReply 設定值
+            Dim aAutoReply As String = aTextHandler.GetData("AutoReply", "False")
+
+            If aAutoReply = "False" Then
+                AutoReply = False
+            Else
+                AutoReply = True
+            End If
+
+            ' 讀取 BinaryLog 設定值
+            Dim aBinaryLog As String = aTextHandler.GetData("AutoReply", "False")
+
+            If aBinaryLog = "False" Then
+                BinaryLog = False
+            Else
+                BinaryLog = True
+            End If
+
+            ' 讀取 TxLog 設定值
+            Dim aTxLog As String = aTextHandler.GetData("TxLog", "False")
+
+            If aTxLog = "False" Then
+                TxLog = False
+            Else
+                TxLog = True
+            End If
+
+        End Sub
+
+
+        ''' <summary>
+        ''' 儲存 Ini File
+        ''' </summary>
+        Protected Friend Sub SaveIniFile()
+
+            Dim buffer As String
+
+            ' New TextHandler
+            Dim aTextHandler As TextHandler.TextHandler
+            aTextHandler = New TextHandler.TextHandler(sIniFilePath, "SECS")
+
+            ' SXMLPath
+            aTextHandler.SetData("SXMLFile", SXMLPath)
+
+            ' Entity
+            If Me.Entity = enumSecsEntity.sPassive Then
+                aTextHandler.SetData("Entity", "Passive")
+            Else
+                aTextHandler.SetData("Entity", "Active")
+            End If
+
+            ' Role
+            If Me.Role = enumRole.sEquipment Then
+                aTextHandler.SetData("Role", "Equipment")
+            Else
+                aTextHandler.SetData("Role", "Host")
+            End If
+
+            ' LinkType
+            aTextHandler.SetData("LinkType", LinkType)
+
+            ' DeviceName
+            aTextHandler.SetData("DeviceName", DeviceName)
+
+            ' Device ID
+            buffer = "0x" + Me.DeviceID.ToString("X4")
+            aTextHandler.SetData("DeviceID", buffer)
+
+            ' Retry
+            aTextHandler.SetData("Retry", Retry.ToString)
+
+            ' IP
+            aTextHandler.SetData("IP", IP)
+
+            ' Port
+            aTextHandler.SetData("Port", Port.ToString)
+
+            ' Timeout 設定值
+            aTextHandler.SetData("T1", T1Timeout.ToString)
+            aTextHandler.SetData("T2", T2Timeout.ToString)
+            aTextHandler.SetData("T3", T3Timeout.ToString)
+            aTextHandler.SetData("T4", T4Timeout.ToString)
+            aTextHandler.SetData("T5", T5Timeout.ToString)
+            aTextHandler.SetData("T6", T6Timeout.ToString)
+            aTextHandler.SetData("T7", T7Timeout.ToString)
+            aTextHandler.SetData("T8", T8Timeout.ToString)
+            aTextHandler.SetData("CA", CATimeout.ToString)
+
+            ' Heartbeat 設定值
+            aTextHandler.SetData("InterleaveEnabled", InterleaveEnabled.ToString)
+            aTextHandler.SetData("HeartbeatEnabled", HeartbeatEnabled.ToString)
+            aTextHandler.SetData("HeartbeatInterval", HeartbeatInterval.ToString)
+            aTextHandler.SetData("HeartbeatTag", HeartbeatTag)
+
+        End Sub
+
+#End Region
 
 
     End Class

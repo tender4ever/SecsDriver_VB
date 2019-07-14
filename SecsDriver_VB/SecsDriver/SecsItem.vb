@@ -6,27 +6,41 @@ Namespace SecsDriver
 
     Public Class SecsItem : Implements ICloneable
 
+
+#Region "Private 屬性"
+
         Private sItemType As String                                     ' Item Type
         Private sItemNumber As Int32                                    ' Item Number
         Private sItemValue As Collection                                ' Item Value
 
         Private sItemFormat As ItemFormat                               ' Item Format
 
+#End Region
+
 
         ' Lock 物件
         Private Shared thisLock As Object = New Object
 
 
-        ' ----------------------- Property ------------------------------
+#Region "Public 屬性"
 
-        ' 讀取 ItemList
+        ''' <summary>
+        ''' ItemList
+        ''' </summary>
+        ''' <returns></returns>
         Public Property ItemList As List(Of SecsItem)
 
-        ' 讀取 ItemMap
+        ''' <summary>
+        ''' ItemMap
+        ''' </summary>
+        ''' <returns></returns>
         Public Property ItemMap As Dictionary(Of String, SecsItem)
 
 
-        ' 存取 ItemType
+        ''' <summary>
+        ''' ItemType
+        ''' </summary>
+        ''' <returns></returns>
         Public Property ItemType As String
 
             Get
@@ -194,7 +208,10 @@ Namespace SecsDriver
         End Property
 
 
-        ' 存取 ItemNumber
+        ''' <summary>
+        ''' ItemNumber
+        ''' </summary>
+        ''' <returns></returns>
         Public Property ItemNumber As Int32
 
             Get
@@ -313,7 +330,10 @@ Namespace SecsDriver
         End Property
 
 
-        ' 讀取 ItemValue
+        ''' <summary>
+        ''' ItemValue
+        ''' </summary>
+        ''' <returns></returns>
         Public ReadOnly Property ItemValue As Collection
 
             Get
@@ -518,16 +538,27 @@ Namespace SecsDriver
         End Property
 
 
-        ' 存取 ItemName
+        ''' <summary>
+        ''' ItemName
+        ''' </summary>
+        ''' <returns></returns>
         Public Property ItemName As String
 
 
-        ' 存取 ItemDescription
+        ''' <summary>
+        ''' ItemDescription
+        ''' </summary>
+        ''' <returns></returns>
         Public Property ItemDescription As String
 
 
-        ' 存取 ItemMapsType
+        ''' <summary>
+        ''' ItemMapsType
+        ''' </summary>
+        ''' <returns></returns>
         Public Property ItemMapsType As List(Of String)
+
+#End Region
 
 
         ' ----------------------- Method ------------------------------
@@ -904,8 +935,12 @@ Namespace SecsDriver
         Public Function SetItemValue(ByRef aString() As String) As Boolean
 
             Try
-                ' 清除 sItemValue
-                sItemValue.Clear()
+                If sItemValue IsNot Nothing Then
+                    ' 清除 sItemValue
+                    sItemValue.Clear()
+                Else
+                    sItemValue = New Collection
+                End If
 
                 ' 清除 DataBytes
                 sItemFormat.DataBytes = Nothing

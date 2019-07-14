@@ -16,9 +16,14 @@ Namespace SecsDriver
 
         Public Sub New()
 
-
             BinaryLogQueue = New Concurrent.ConcurrentQueue(Of String)
             TxLogQueue = New Concurrent.ConcurrentQueue(Of String)
+
+            ' 建立 SECS Log 資料夾
+            If Not IO.Directory.Exists(Application.StartupPath & "\SECSLog") Then
+
+                IO.Directory.CreateDirectory(Application.StartupPath & "\SECSLog")
+            End If
 
             ' 建立 Log Txt 檔
             sBinaryLog = New FileStream(Application.StartupPath & "\SECSLog\BinaryLog.txt", FileMode.OpenOrCreate, FileAccess.ReadWrite)
