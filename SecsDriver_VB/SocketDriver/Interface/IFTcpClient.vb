@@ -2,20 +2,31 @@
 
 Namespace SocketDriver
 
-	' TcpClient 的 Interface
-	Public Interface IFTcpClient
+    ''' <summary>
+    ''' TcpClient 的 Interface
+    ''' </summary>
+    Public Interface IFTcpClient
 
-		' TCP Client 連線
-		Sub connect()
+        ''' <summary>
+        ''' TCP Client 連線
+        ''' </summary>
+        Sub connect()
 
-		' TCP Client 斷線
-		Sub disconnect()
+        ''' <summary>
+        ''' TCP Client 斷線
+        ''' </summary>
+        Sub disconnect()
 
-		' TCP Client Send Message
-		Sub send(ByVal message As Byte())
+        ''' <summary>
+        ''' TCP Client Send Message
+        ''' </summary>
+        ''' <param name="message"></param>
+        Sub send(ByVal message As Byte())
 
-		' TCP Client Receive Message
-		Sub receive()
+        ''' <summary>
+        ''' TCP Client Receive Message
+        ''' </summary>
+        Sub receive()
 
 	End Interface
 

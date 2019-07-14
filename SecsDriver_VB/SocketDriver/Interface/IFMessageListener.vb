@@ -2,8 +2,10 @@
 
 Namespace SocketDriver
 
-	' MessageListener 的 Interface
-	Public Interface IFMessageListener
+    ''' <summary>
+    ''' MessageListener 的 Interface
+    ''' </summary>
+    Public Interface IFMessageListener
 
 		' Message 訊息
 		Sub onMessage(ByRef message As Byte())

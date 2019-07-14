@@ -2,20 +2,31 @@
 
 Namespace SocketDriver
 
-	' TcpServer 的 Interface
-	Public Interface IFTcpServer
+    ''' <summary>
+    ''' TcpServer 的 Interface
+    ''' </summary>
+    Public Interface IFTcpServer
 
-		' TCP Server 連線
-		Sub connect()
+        ''' <summary>
+        ''' TCP Server 連線
+        ''' </summary>
+        Sub connect()
 
-		' TCP Server 斷線
-		Sub disconnect()
+        ''' <summary>
+        ''' TCP Server 斷線
+        ''' </summary>
+        Sub disconnect()
 
-		' TCP Server Send Message
-		Sub send(ByVal message As Byte())
+        ''' <summary>
+        ''' TCP Server Send Message
+        ''' </summary>
+        ''' <param name="message"></param>
+        Sub send(ByVal message As Byte())
 
-		' TCP Server Receive Message
-		Sub receive()
+        ''' <summary>
+        ''' TCP Server Receive Message
+        ''' </summary>
+        Sub receive()
 
 	End Interface
 
