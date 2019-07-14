@@ -32,61 +32,61 @@ The SXML file is defined the message for host and equipment communicating
 	<DataDictionary>
 	</DataDictionary>
 	<MessageDictionary>
-		
+	
 		<Message Name="S2F49_RemoteTransferCommand" Description="">					
 			<Stream>2</Stream>
-	        <Function>49</Function>
+	        	<Function>49</Function>
 			<WBit>1</WBit>
-            <AutoReply>S2F50_RemoteTransferCommandAck</AutoReply>
-            <Structure>
-		        <L Name="NameList" Description="Setting List">
-	                <A Name="NameASCII" Description="Setting ASCII">
-                        <Value></Value>
-                        <Maps Type="4096"></Maps>
-                    </A>
-                    <B Name="NameBinary" Description="Setting Binary">
-                        <Value>00</Value>
-                        <Maps Type="1024"></Maps>
-                    </B>
-                    <Boolean Name="NameBoolean" Description="Setting Boolean">
-                        <Value>True</Value>
-                        <Maps Type="2048"></Maps>
-                    </Boolean>
-	                <I1 Name="NameInt1" Description="Setting Int1">
-		                <Value>1</Value>
-                        <Maps Type="1"></Maps>
+            		<AutoReply>S2F50_RemoteTransferCommandAck</AutoReply>
+            		<Structure>
+		        	<L Name="NameList" Description="Setting List">
+	                		<A Name="NameASCII" Description="Setting ASCII">
+                        			<Value></Value>
+                        			<Maps Type="4096"></Maps>
+                    			</A>
+                    			<B Name="NameBinary" Description="Setting Binary">
+                        			<Value>00</Value>
+                        			<Maps Type="1024"></Maps>
+                    			</B>
+                    			<Boolean Name="NameBoolean" Description="Setting Boolean">
+                        			<Value>True</Value>
+                        			<Maps Type="2048"></Maps>
+                    			</Boolean>
+	                		<I1 Name="NameInt1" Description="Setting Int1">
+		                		<Value>1</Value>
+                        			<Maps Type="1"></Maps>
 					</I1>
 					<I2 Name="NameInt2" Description="Setting Int2">
-		                <Value></Value>
-                        <Maps Type="2"></Maps>
+		                		<Value></Value>
+                        			<Maps Type="2"></Maps>
 					</I2>
 					<I4 Name="NameInt4" Description="Setting Int4">
-		                <Value></Value>
-                        <Maps Type="4"></Maps>
+		                		<Value></Value>
+                        			<Maps Type="4"></Maps>
 					</I4>
 					<I8 Name="NameInt8" Description="Setting Int8">
-		                <Value></Value>
-                        <Maps Type="8"></Maps>
-					</I4>
+		                		<Value></Value>
+                        			<Maps Type="8"></Maps>
+					</I8>
 					<U1 Name="NameUInt1" Description="Setting UInt1">
-	                    <Value>11</Value>
-	                    <Maps Type="16"></Maps>
-                    </U1>
-                    <U2 Name="NameUInt2" Description="Setting UInt2">
-                        <Value>0</Value>
-                        <Maps Type="32"></Maps>
-                    </U2>
-                    <U4 Name="NameUInt4" Description="Setting UInt4">
-	                    <Value></Value>
-	                    <Maps Type="64"></Maps>
-                    </U4>
-		            <U8 Name="NameUInt8" Description="Setting UInt8">
-	                    <Value></Value>
-	                    <Maps Type="128"></Maps>
-                    </U8>
-                </L>
-            </Structure>
-        </Message>
+	                    			<Value>11</Value>
+	                    			<Maps Type="16"></Maps>
+                    			</U1>
+                    			<U2 Name="NameUInt2" Description="Setting UInt2">
+                        			<Value>0</Value>
+                        			<Maps Type="32"></Maps>
+                    			</U2>
+                    			<U4 Name="NameUInt4" Description="Setting UInt4">
+	                    			<Value></Value>
+	                    			<Maps Type="64"></Maps>
+                    			</U4>
+		            		<U8 Name="NameUInt8" Description="Setting UInt8">
+	                    			<Value></Value>
+	                    			<Maps Type="128"></Maps>
+                    			</U8>
+                		</L>
+            		</Structure>
+        	</Message>
 
 	</MessageDictionary>
 </SXML>
